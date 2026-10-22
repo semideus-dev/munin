@@ -24,7 +24,8 @@ import type { UsageEvent } from "../domain/usage.js";
 import { buildEvents } from "../analyze/build.js";
 import { cacheStats } from "../analyze/cache.js";
 import { detectFindings, recoverableByEvent } from "../analyze/findings.js";
-import { DETECTORS } from "../analyze/findings/index.js";
+import { buildRecommendations } from "../analyze/recommend.js";
+import { DETECTORS } from "../analyze/rules.js";
 import { projectionDays } from "../analyze/projection.js";
 import { summarize, projectCollisions } from "../analyze/summary.js";
 import { sessionSummaries } from "../analyze/sessions.js";
@@ -54,14 +55,24 @@ function methodParagraph(zone: string): string {
   );
 }
 
-function serialiseFinding(finding: Finding): ReportFinding {
+function serialiseFinding(finding: Finding, overlapWith: readonly string[] = []): ReportFinding {
   const claimByEvent = [...finding.claimByEvent]
     .map(([eventId, usd]) => ({ eventId, usd }))
     .sort(byClaim);
   const { affects: _matched, claimByEvent: _claims, ...serialisable } = finding;
   void _matched;
   void _claims;
-  return { ...serialisable, claimByEvent };
+  return {
+    ...serialisable,
+    claimByEvent,
+    ...(overlapWith.length === 0 ? {} : { overlapWith: [...overlapWith] }),
+  };
+}
+
+/** Report-facing order: stable by rule id, then title. */
+function byRuleThenTitle(a: Finding, b: Finding): number {
+  if (a.rule !== b.rule) return asc(a.rule, b.rule);
+  return asc(a.title, b.title);
 }
 
 /** De-overlapped saving for one tier set, projected at the recent pace. */
@@ -114,6 +125,35 @@ function reportSavings(
     unpricedTokensWasted,
     unpricedFindings,
   };
+}
+
+/** Which rules contend for at least one claimed event. */
+function overlapByRule(findings: readonly Finding[]): Map<string, string[]> {
+  const claims = new Map<string, Set<string>>();
+  for (const finding of findings) {
+    for (const [eventId, usd] of finding.claimByEvent) {
+      if (!(usd > 0)) continue;
+      const row = claims.get(eventId) ?? new Set<string>();
+      row.add(finding.rule);
+      claims.set(eventId, row);
+    }
+  }
+
+  const pairs = new Map<string, Set<string>>();
+  for (const set of claims.values()) {
+    if (set.size < 2) continue;
+    const rules = [...set].sort(asc);
+    for (const left of rules) {
+      const row = pairs.get(left) ?? new Set<string>();
+      for (const right of rules) {
+        if (left === right) continue;
+        row.add(right);
+      }
+      pairs.set(left, row);
+    }
+  }
+
+  return new Map([...pairs.entries()].map(([rule, set]) => [rule, [...set].sort(asc)]));
 }
 
 /** Models with unpriced calls, with the observed spend the source did record. */
@@ -173,6 +213,13 @@ export function buildReport(
   const cache = cacheStats(events, { zone });
   const sessions = sessionSummaries(events, dataset.sessions, priced.attempts);
   const detection = detectFindings(events, options.detectors ?? DETECTORS);
+  const reportFindings = [...detection.findings].sort(byRuleThenTitle);
+  const overlaps = overlapByRule(detection.findings);
+  const recommendations = buildRecommendations(
+    detection.findings,
+    summary.totals.calls,
+    options.decisions,
+  );
 
   let withPrefix = 0;
   const prefixSessions = new Set<string>();
@@ -183,7 +230,16 @@ export function buildReport(
     }
   }
 
+  const reconciliation = reconciliationOf(dataset);
+  const projectLabelCollisions = projectCollisions(events);
+  const clean =
+    priced.warnings.length === 0 &&
+    reconciliation.mismatchSessions === 0 &&
+    projectLabelCollisions.length === 0 &&
+    detection.errors.length === 0;
+
   const dataHealth: DataHealth = {
+    clean,
     schema: dataset.schema,
     sources: [...dataset.sources].sort(asc),
     sessions: dataset.sessions.length,
@@ -195,8 +251,8 @@ export function buildReport(
     warnings: priced.warnings,
     unpricedModels: unpricedModelHealth(events),
     observedCoverage: summary.totals.observedCoverage,
-    reconciliation: reconciliationOf(dataset),
-    projectLabelCollisions: projectCollisions(events),
+    reconciliation,
+    projectLabelCollisions,
     detectorErrors: detection.errors,
     instruction: {
       sessions: summary.totals.sessions,
@@ -222,7 +278,10 @@ export function buildReport(
     byAgent: summary.byAgent,
     cache,
     sessions,
-    findings: detection.findings.map(serialiseFinding),
+    findings: reportFindings.map((finding) =>
+      serialiseFinding(finding, overlaps.get(finding.rule) ?? []),
+    ),
+    recommendations,
     savings: reportSavings(detection.findings, windowDays, pace),
     dataHealth,
   };

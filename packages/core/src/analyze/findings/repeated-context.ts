@@ -13,6 +13,7 @@ import type { DetectionContext, FindingDraft, FindingCandidate } from "../../dom
 import type { UsageEvent } from "../../domain/usage.js";
 import { PRICING_AS_OF } from "../../pricing/providers.js";
 import { eventRates } from "../findings.js";
+import { confidenceOf } from "../rules/confidence.js";
 
 export const REPEATED_CONTEXT_THRESHOLDS = {
   /** Sessions sharing one identity before it counts. */
@@ -109,10 +110,11 @@ export function detectRepeatedContext(context: DetectionContext): readonly Findi
       tokensWasted: uncachedInputTokens,
       events: group.events,
       evidence,
-      confidence: {
-        level: "medium",
-        basis: "medium because the fix changes what the model receives, not what it outputs",
-      },
+      confidence: confidenceOf({
+        measured: true,
+        sample: group.events.length,
+        tokenProfileStable: true,
+      }),
       impact: "medium",
       risk: "needs-verification",
       assumptions: [

@@ -349,12 +349,19 @@ Rule-specific tests 3/5 Regression coverage
 
 ### Phase 4 summary
 
-The engine evaluates rules, explains recommendations, and safely applies
-or reverses supported changes. Verification distinguishes measured
-results from estimates.
+The engine evaluates rules and explains recommendations. Its injected
+apply/undo seam only handles explicitly supported Munin-owned settings;
+current rules have no such mapping, so external-agent actions are queued.
+Verification distinguishes measured results from estimates.
 
 **Exit criterion:** Rules are independently tested, unsupported actions
 fail clearly, and apply/undo does not silently corrupt configuration.
+
+Status: in progress on 2026-10-23. Registry, recommendation/decision state,
+verification, apply/undo seams, replay abstractions, tests, and Step 9 docs are
+implemented. Phase 4 is not marked complete: exact reference parity for the 15
+additional detector implementations remains unaudited, and no current rule
+maps to an applicable Munin-owned optimization setting.
 
 ---
 

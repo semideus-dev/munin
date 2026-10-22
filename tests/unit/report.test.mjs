@@ -208,6 +208,18 @@ test("a fixture report matches the stored snapshot byte for byte", () => {
   }
 });
 
+test("data health clean is false on warnings and reconciliation mismatch", () => {
+  const cleanDataset = fixture();
+  cleanDataset.sessions = cleanDataset.sessions.filter((session) => session.id === "s1");
+  cleanDataset.messages = cleanDataset.messages.filter((message) => message.sessionId === "s1");
+  const cleanReport = buildReport(cleanDataset);
+  assert.equal(cleanReport.dataHealth.clean, true);
+
+  const empty = { schema: "none", sessions: [], messages: [], warnings: [], sources: [] };
+  const emptyReport = buildReport(empty);
+  assert.equal(emptyReport.dataHealth.clean, false);
+});
+
 test("bucket and session sums reconcile to the totals", () => {
   const report = buildReport(fixture());
   const totals = report.totals;

@@ -28,6 +28,7 @@ import type {
   SavingsEstimate,
   VerificationMode,
 } from "./finding.js";
+import type { Recommendation, RecommendationDecision } from "./recommendation.js";
 import type { SourceSchema, SourceWarning } from "./source.js";
 
 /** A finding's split of its window saving, carried on one call. */
@@ -58,6 +59,8 @@ export interface ReportFinding {
   candidate?: FindingCandidate;
   /** Sorted by `usd` descending, then event id, so byte output is stable. */
   claimByEvent: FindingClaim[];
+  /** Other rules that contend for at least one claimed call, if any. */
+  overlapWith?: string[];
 }
 
 /** Recoverable spend for one tier set, de-overlapped per call. */
@@ -145,6 +148,8 @@ export interface InstructionHealth {
 
 /** What a reviewer needs to know about the data behind every number. */
 export interface DataHealth {
+  /** False when source warnings, reconciliation mismatches, or detector errors exist. */
+  clean: boolean;
   schema: SourceSchema;
   /** Files or stores actually read. */
   sources: string[];
@@ -191,8 +196,10 @@ export interface MuninReport {
   cache: CacheStats;
   /** One row per session with usage-bearing calls, children not rolled up. */
   sessions: SessionSummary[];
-  /** Sorted by projected monthly saving, then rule, then title. */
+  /** Sorted by rule id, then title. */
   findings: ReportFinding[];
+  /** Actionable, non-advisory recommendations derived from findings. */
+  recommendations: Recommendation[];
   savings: ReportSavings;
   dataHealth: DataHealth;
 }
@@ -202,4 +209,6 @@ export interface BuildReportOptions {
   zone?: DayZone;
   /** Defaults to the standard detector registry when omitted. */
   detectors?: readonly FindingDetector[];
+  /** Previously-recorded choices; supplied by the host to keep core pure. */
+  decisions?: Readonly<Record<string, RecommendationDecision>>;
 }

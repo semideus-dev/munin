@@ -14,7 +14,8 @@
 import type { DetectionContext, FindingDraft } from "../../domain/finding.js";
 import type { ToolCall, UsageEvent } from "../../domain/usage.js";
 import { PRICING_AS_OF } from "../../pricing/providers.js";
-import { countedConfidence, eventRates } from "../findings.js";
+import { eventRates } from "../findings.js";
+import { confidenceOf } from "../rules/confidence.js";
 
 /** Tools whose results are pure context, so re-reading them is waste. */
 const READ_ONLY_TOOLS = new Set([
@@ -172,9 +173,11 @@ export function detectRepeatToolCalls(context: DetectionContext): readonly Findi
   const anyEvent = [...touched][0];
   const cardDate =
     anyEvent === undefined ? PRICING_AS_OF : (eventRates(anyEvent)?.cardFrom ?? PRICING_AS_OF);
-  const confidence = countedConfidence(
-    [...perSignature.values()].reduce((sum, row) => sum + row.count, 0),
-  );
+  const confidence = confidenceOf({
+    measured: true,
+    sample: [...perSignature.values()].reduce((sum, row) => sum + row.count, 0),
+    tokenProfileStable: true,
+  });
 
   const draft: FindingDraft = {
     rule: "repeat-tool-calls",

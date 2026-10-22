@@ -656,7 +656,7 @@
         "unpriced": false,
         "pricingAsOf": "2026-10-22",
         "confidence": "low",
-        "confidenceBasis": "low because 2 duplicate(s) is too thin to average",
+        "confidenceBasis": "costed from recorded tokens at the rate in force; 2 affected calls; token counts unchanged by the fix; low because fewer than 10 calls is too thin to average",
         "assumptions": [
           "A duplicate read returns the same content the context already had: no edit to that file, and no change at all for a search, came in between.",
           "The duplicate stays in the prefix until the context ends or a compaction clears it.",
@@ -707,6 +707,28 @@
       ]
     }
   ],
+  "recommendations": [
+    {
+      "id": "repeat-tool-calls",
+      "rule": "repeat-tool-calls",
+      "action": "Stop duplicate reads in the same context; reuse earlier results or narrow the read.",
+      "rationale": "In this window, 2 of 8 calls (25%) on gpt-oss:120b: The same content was fetched again without an intervening change, so duplicate results are re-written into context and re-read by later calls.",
+      "confidence": "low",
+      "tier": "fix",
+      "actions": [
+        "view-affected",
+        "simulate",
+        "apply"
+      ],
+      "status": "new",
+      "windowUsd": 0.000025679999999999998,
+      "monthlyUsd": 0.0007704,
+      "affectedCalls": 2,
+      "models": [
+        "gpt-oss:120b"
+      ]
+    }
+  ],
   "savings": {
     "windowDays": 1,
     "projectionDays": 1,
@@ -754,6 +776,7 @@
     "unpricedFindings": 0
   },
   "dataHealth": {
+    "clean": false,
     "schema": "v2",
     "sources": [
       "assets/sessions",

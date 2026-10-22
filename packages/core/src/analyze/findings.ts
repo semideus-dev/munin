@@ -12,6 +12,7 @@
 import { PRICING_AS_OF } from "../pricing/providers.js";
 import { ratesFor } from "../pricing/cost.js";
 import { priceFor } from "../pricing/resolve.js";
+import { confidenceOf } from "./rules/confidence.js";
 import type {
   AffectedTraffic,
   AnalysisError,
@@ -89,16 +90,7 @@ export function countedConfidence(sample: number): {
   level: "low" | "medium" | "high";
   basis: string;
 } {
-  if (sample < 10) {
-    return { level: "low", basis: `low because ${sample} duplicate(s) is too thin to average` };
-  }
-  if (sample < 50) {
-    return {
-      level: "medium",
-      basis: `medium because the sample is under 50 calls (currently ${sample})`,
-    };
-  }
-  return { level: "high", basis: "high because only future traffic is assumed" };
+  return confidenceOf({ measured: true, sample, tokenProfileStable: true });
 }
 
 /**

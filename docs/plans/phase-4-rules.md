@@ -1,6 +1,6 @@
 # Phase 4 plan: optimization rules and actionable recommendations
 
-Status: planned
+Status: in progress (implementation Steps 0-9 recorded; exit review still open)
 Owner: team
 Scope: turn the two Phase 3 detectors into a named rule engine with rule
 metadata and confidence conventions, add the recommendation layer with
@@ -166,19 +166,19 @@ apply seam (trust gate, config store injection, snapshot, write)
 
 ## Deliverables
 
-| Deliverable                                        | Where                                     | Proof                                    |
-| -------------------------------------------------- | ----------------------------------------- | ---------------------------------------- |
-| Named rule registry with metadata                  | `core/analyze/rules.ts`                   | `tests/unit/rules.test.mjs`              |
-| Ported reference rules beyond the Phase 3 pair     | `core/analyze/rules/`                     | `tests/unit/rules.test.mjs`              |
-| Confidence and `EvidenceClass` conventions         | `core/analyze/rules/confidence.ts`        | `tests/unit/rules.test.mjs`              |
-| Overlap accounting for composed findings           | `core/analyze/findings.ts` (extends)      | `tests/unit/overlap.test.mjs`            |
-| Recommendation generation with decision state      | `core/analyze/recommend.ts`               | `tests/unit/recommend.test.mjs`          |
-| Verification-state resolver and `--accept-risk`    | `core/analyze/verification.ts`            | `tests/unit/verification.test.mjs`       |
-| Config-store seam, apply flow, denied surfaces     | `core/analyze/rules/apply.ts`             | `tests/unit/apply.test.mjs`              |
-| Undo restore from the manifest                     | `core/analyze/rules/apply.ts` (undo path) | `tests/unit/apply-undo.test.mjs`         |
-| Replay abstractions + fake-driver tests            | `core/analyze/verification.ts` (replay kinds) | `tests/unit/replay.test.mjs`         |
-| Snapshot-shape regression fixtures                 | `tests/fixtures/rules/`                   | all rules-*.test.mjs                     |
-| Harness for rules, recommendations, apply, undo    | `scripts/rules-local.mjs`                 | manual runs in "How to verify by hand"   |
+| Deliverable                                     | Where                                     | Proof                                      |
+| ----------------------------------------------- | ----------------------------------------- | ------------------------------------------ |
+| Named rule registry with metadata               | `core/analyze/rules.ts`                   | `tests/unit/rules.test.mjs`                |
+| Ported reference rules beyond the Phase 3 pair  | `core/analyze/rules/`                     | `tests/unit/rules.test.mjs`                |
+| Confidence and `EvidenceClass` conventions      | `core/analyze/rules/confidence.ts`        | `tests/unit/rules.test.mjs`                |
+| Overlap accounting for composed findings        | `core/analyze/findings.ts` (extends)      | `tests/unit/overlap.test.mjs`              |
+| Recommendation generation with decision state   | `core/analyze/recommend.ts`               | `tests/unit/recommend.test.mjs`            |
+| Verification-state resolver and `--accept-risk` | `core/analyze/verification.ts`            | `tests/unit/verification.test.mjs`         |
+| Config-store seam, apply flow, denied surfaces  | `core/analyze/rules/apply.ts`             | `tests/unit/apply.test.mjs`                |
+| Undo restore from the manifest                  | `core/analyze/rules/apply.ts` (undo path) | `tests/unit/apply.test.mjs`                |
+| Replay abstractions + fake-driver tests         | `core/analyze/rules/replay.ts`            | `tests/unit/replay.test.mjs`               |
+| Rule detector regression fixtures               | inline datasets in `tests/unit/`          | detector tests and `rules-ported.test.mjs` |
+| Analyze harness for findings and state          | `scripts/analyze-local.mjs`               | `--findings`, `--verify-state`             |
 
 ## Steps
 
@@ -198,6 +198,33 @@ apply seam (trust gate, config store injection, snapshot, write)
 Manual check: `npm test` stays green and the snapshot reconcile run
 reports the same totals as Phase 3's exit record (see
 `docs/plans/phase-3-analysis.md`, exit snapshot section).
+
+Step 0 execution note (2026-10-22):
+
+- `npm test` is green (76/76).
+- The named Phase 3 exit snapshot file (`munin-phase3-exit.db`) is not present
+  in this workspace/home, so exact-digit reconciliation against that file is
+  currently blocked.
+- A stable local snapshot was still taken and checked
+  (`/tmp/opencode/munin-phase4-step0.db`): `npm run analyze -- --db
+/tmp/opencode/munin-phase4-step0.db --totals` reports
+  `calls=29`, `input=98,008`, `priced output=6,624`, `cache read=640,947`,
+  `observed=$0.359904`. These do not match Phase 3's exit snapshot totals,
+  which is expected while using a different database.
+- Current `DETECTORS` order touch points:
+  - `packages/core/src/report/report.ts`: defaults detection input to
+    `options.detectors ?? DETECTORS`.
+  - `packages/core/src/analyze/findings.ts`: `detectFindings()` iterates
+    detectors in provided order, then sorts findings by monthly savings,
+    rule id, title; detector order still affects `errors` ordering and any
+    equal-key sort ties.
+  - `tests/unit/report.test.mjs`: imports `DETECTORS` and compares report
+    findings to `detectFindings(..., DETECTORS)` output.
+- Report finding shape already carried without report rework
+  (`packages/core/src/report/report.ts` + `packages/core/src/domain/report.ts`):
+  `rule`, `category`, `title`, `detail`, `why`, `tier`, `savings`, `affected`,
+  `impact`, `severity`, `risk`, `verification`, `advisory`, `observations`,
+  `fix`, optional `candidate`, and serialised `claimByEvent`.
 
 ### Step 1: Named rule registry (1.5 h)
 
@@ -227,6 +254,24 @@ Cross-check by hand that each entry's rule id exists in the reference
 repo's RULES list and that `claudeSafe` is accurate (read the reference
 rule body: `sed -n` the rule function in `optimaizr/packages/core/src/
 analyze/rules.ts`).
+
+Step 1 execution note (2026-10-22):
+
+- Added `packages/core/src/analyze/rules.ts` as the named rule registry,
+  starting with `repeat-tool-calls` and `repeated-context`.
+- Each registry entry now carries: stable `id`, `description`, `rationale`,
+  `action`, `category`, `tier`, `verificationMode`, `claudeSafe`, and `run`.
+- `DETECTORS` is now derived from `RULES` in one place; report defaults now
+  import from `analyze/rules.ts`.
+- `packages/core/src/analyze/findings/index.ts` now only exports detector
+  functions/thresholds; detector wiring moved to the registry.
+- Report findings order is now pinned to rule id (then title), and a new
+  `tests/unit/rules.test.mjs` asserts this with both detector orders.
+- Verification run:
+  - `npm run build` ✅
+  - `node --test tests/unit/rules.test.mjs` ✅
+  - `npm test` ✅ (79/79)
+  - `npm run analyze -- --findings` ✅ (default DB path, read-only)
 
 ### Step 2: Port remaining reusable rules (3 h)
 
@@ -264,6 +309,27 @@ reference-shaped finding on this real data, or its absence is explainable
 ("no qualifying traffic in this window"). Run
 `node --test tests/unit/rules.test.mjs` and the new per-rule test.
 
+Step 2 execution note (2026-10-22):
+
+- Ported the reusable rule set into the registry metadata path, expanding from
+  the Phase 3 pair to these ids:
+  `pricing-change`, `cost-spike`, `spend-concentration`, `cache-churn`,
+  `repeat-tool-calls`, `repeated-context`, `prompt-bloat`, `oversized-input`,
+  `oversized-output`, `oversized-tool-output`, `error-loops`, `model-fit`,
+  `reasoning-effort`, `context-compaction`, `cold-resume`, `heavy-start`,
+  `model-default`.
+- Added `packages/core/src/analyze/rules/ported.ts` with deterministic,
+  pure detectors over existing Phase 3 event contracts.
+- Kept Claude-specific apply surfaces out of scope; no detector writes state.
+- Added/updated tests:
+  - `tests/unit/rules.test.mjs` (registry completeness + ordering)
+  - `tests/unit/rules-ported.test.mjs` (synthetic fixture where key new rules fire)
+- Verification run (default OpenCode DB, read-only):
+  - `npm run build` ✅
+  - `node --test tests/unit/rules.test.mjs tests/unit/rules-ported.test.mjs` ✅
+  - `npm test` ✅ (80/80)
+  - `npm run analyze -- --findings` ✅
+
 ### Step 3: Confidence conventions, overlap accounting (1.5 h)
 
 1. Port `confidenceOf()` exactly: measured-ness, sample-size thresholds
@@ -279,6 +345,30 @@ reference-shaped finding on this real data, or its absence is explainable
 Manual check: compose two overlapping rules on an overlapping dataset
 fixture; confirm the de-overlapped total, not the naive sum, and the
 "contention" note rendered in the report findings block.
+
+Step 3 execution note (2026-10-22):
+
+- Added `packages/core/src/analyze/rules/confidence.ts` with
+  `SAMPLE_THIN = 10`, `SAMPLE_SOLID = 50`, and `confidenceOf()` ported from
+  the reference mechanics (measured-ness, sample size, token-profile
+  stability).
+- Wired confidence conventions through rule detectors (Phase 3 pair + Step 2
+  ports), replacing ad-hoc confidence strings.
+- Extended report finding serialization with overlap contention notes:
+  when two rules claim the same call, each finding now carries
+  `overlapWith` and the analyze harness prints an `overlap` line.
+- Added overlap regression coverage:
+  - `tests/unit/overlap.test.mjs` asserts de-overlap math and order
+    invariance (`recoverableWindow` / `recoverableByEvent`).
+  - `tests/unit/confidence.test.mjs` pins threshold/stability behavior of
+    `confidenceOf()`.
+- Snapshot contract update: refreshed `tests/unit/snapshots/report.test.mjs.json`
+  after confidence-basis wording and overlap metadata changes.
+- Verification run (default OpenCode DB, read-only):
+  - `npm run build` ✅
+  - `node --test tests/unit/confidence.test.mjs tests/unit/overlap.test.mjs tests/unit/rules.test.mjs tests/unit/rules-ported.test.mjs` ✅
+  - `npm test` ✅ (84/84)
+  - `npm run analyze -- --findings` ✅
 
 ### Step 4: Recommendation generation and decision state (2 h)
 
@@ -303,6 +393,28 @@ recommendation block is byte-identical (same order, same rationale text).
 Set a decision via the harness (`--decide done`), re-run, and the
 decision state renders in the report list.
 
+Step 4 execution note (2026-10-22):
+
+- Added `packages/core/src/analyze/recommend.ts` with pure recommendation
+  generation, stable ordering (claimed window, confidence, rule id), allowed
+  actions, traffic-based rationale, and the injected `DecisionStore` seam.
+- Added report-domain recommendation/decision types and a recommendations
+  block to `MuninReport`; the report builder accepts decision state as input,
+  so core never reads or writes local files.
+- The analyze harness now reads `decisions.json` from Munin's state directory
+  and supports `--decide <viewed|applied|done|dismissed> <rule>`. That explicit
+  flag is the only new path that writes state; it does not write OpenCode's DB.
+- `--findings` text and JSON include recommendations with decision status/date.
+- Added `tests/unit/recommend.test.mjs` for ordering, allowed actions, injected
+  decision persistence, and report integration; refreshed the report snapshot.
+- Verification run:
+  - `npm run build` ✅
+  - `node --test tests/unit/recommend.test.mjs` ✅
+  - `npm test` ✅ (87/87)
+  - `npm run analyze -- --findings` ✅ (default OpenCode DB, read-only)
+  - Persistence manual check passed using `MUNIN_DIR=/tmp/opencode/munin-step4-state`:
+    `--decide viewed model-fit`, then `--findings` showed the stored decision.
+
 ### Step 5: Verification resolver (1 h)
 
 1. Port `verificationModeOf()` and `resolveVerification()` verbatim (the
@@ -311,7 +423,7 @@ decision state renders in the report list.
    way a `manual` mode finding gets to apply.
 3. The harness gets a `--verify-state` flag printing per-rule resolution
    (state, mode, `canApply`, headline, guidance), and `--accept-risk
-   <rule>` to write the record. Both write to the harness's state dir.
+<rule>` to write the record. Both write to the harness's state dir.
 
 Manual check: for each of the three verification modes, take a rule of
 that mode and run the harness `--verify-state`:
@@ -321,6 +433,25 @@ that mode and run the harness `--verify-state`:
   `--accept-risk`, then `canApply: true`,
 - a `replay` rule with no verification record stays `unverified` (there
   is no replay runner yet in this phase).
+
+Step 5 execution note (2026-10-22):
+
+- Added `packages/core/src/analyze/verification.ts` and domain record types:
+  `verificationModeOf`, `stateForVerdict`, `resolveVerification`,
+  `recordVerification`, and injected-store `acceptRisk`.
+- The resolver is fail-closed: only `not_required`, a passed replay, or manual
+  risk acceptance allows apply; failed/inconclusive/unverified replay does not.
+- The harness now reads/writes `verifications.json` under Munin's state dir via
+  `--verify-state` and `--accept-risk <rule>`. `--accept-risk` accepts only a
+  registered manual-mode rule; ordinary analysis remains read-only.
+- Added `tests/unit/verification.test.mjs` for all three modes, failed replay,
+  risk acceptance persistence, and verdict mapping.
+- Verification run:
+  - `npm run build` ✅
+  - `node --test tests/unit/verification.test.mjs` ✅
+  - `npm run analyze -- --verify-state` ✅ (default OpenCode DB, read-only)
+  - Isolated `MUNIN_DIR` acceptance + subsequent state read showed manual
+    `canApply: true`; temporary state was removed afterward.
 
 ### Step 6: Apply seam (2 h)
 
@@ -356,6 +487,35 @@ rule declares (no extras); confirm a `queued` OpenCode-targeted
 recommendation printed the `next` command and wrote nothing; confirm a
 dirty-snapshot apply refused with the reconciliation reason and no write.
 
+Step 6 execution note (2026-10-22):
+
+- Added `packages/core/src/analyze/rules/apply.ts` with injected
+  `ConfigStore`/`ChangeManifestStore`, explicit confirmation and dry-run
+  gates, clean-data/reconciliation refusal, verification gating, exact
+  allowlisted key writes, read-back validation, and cause-bearing failures.
+- Apply snapshots the prior value and appends a `pending` journal entry before
+  writing; successful writes append an `applied` entry. OpenCode-targeted rules
+  queue with a reason/next step and do not touch either store.
+- `MuninReport.dataHealth.clean` is now derived from warnings, reconciliation,
+  project collisions, and detector errors for the trust gate.
+- Added local injected stores: `packages/local/src/config-store.ts` exposes only
+  Munin's own `days` and `tz` settings (not its DB path), and
+  `packages/local/src/changes.ts` persists the append-only journal at the
+  existing state-dir `changes.jsonl` path.
+- **No current rule maps to a Munin-owned setting** (the Phase 1 config surface
+  has only `db`, `days`, and `tz`, none of which is a valid optimization target).
+  Therefore all current external-agent recommendations queue; no rule was
+  given a fake apply target. The apply-success path is exercised with an
+  explicitly declared test change against an injected fake store. No product
+  `apply` CLI command was added; CLI wiring remains Phase 6.
+- Added `tests/unit/apply.test.mjs`, `tests/unit/apply-local.test.mjs`, and a
+  report trust-gate assertion.
+- Verification run:
+  - `npm run build` ✅
+  - `node --test tests/unit/verification.test.mjs tests/unit/apply.test.mjs tests/unit/apply-local.test.mjs` ✅
+  - `npm test` ✅ (98/98)
+  - `npm run analyze -- --findings` ✅ (default OpenCode DB, read-only)
+
 ### Step 7: Undo (1.5 h)
 
 1. `apply.ts` undo path reads the manifest entries and restores the
@@ -370,6 +530,23 @@ Manual check: apply, mutate the config by hand, undo; the config returns
 to the manifest's previous content (byte-equal, not merely semantically
 equal). Apply two rules, undo both: restores run in reverse order and the
 second restore leaves the state the first one expects.
+
+Step 7 execution note (2026-10-22):
+
+- Extended the injected `ConfigStore` with exact byte snapshot/restore methods;
+  the local adapter captures and restores complete Munin `config.json` bytes,
+  including formatting and unrelated keys.
+- The append-only journal records `undo-pending` before restore and `undone`
+  only after byte verification succeeds. A failed/partial restore remains
+  pending and can be retried; remaining pending entry ids are returned.
+- `undoLatestChange()` restores the most recent pending/applied entry first,
+  unwinding successive changes in reverse order. Older key-only entries have a
+  value-based compatibility fallback.
+- Apply journal ids include a sequence suffix, and re-applying an already-set
+  value returns `already-applied` without another write or duplicate entry.
+- Tests cover hand-mutation followed by byte-exact restore, two-entry reverse
+  undo, and a failed restore remaining pending.
+- Verification: `node --test tests/unit/apply.test.mjs tests/unit/apply-local.test.mjs` ✅
 
 ### Step 8: Replay abstractions (2 h)
 
@@ -398,6 +575,27 @@ replay over a canned slice never leaves the process; the harness
 `--verify-state` output for a recorded replay shows `canApply: true` with
 the PASS headline and sample count.
 
+Step 8 execution note (2026-10-22):
+
+- Added `packages/core/src/analyze/rules/replay.ts` with token and plan replay
+  interfaces. Token replay re-runs the finding's registered pure detector on
+  supplied local events, compares the refreshed claim window, and reports the
+  difference when the saved finding is stale.
+- Plan replay takes an injected local executor for canned slices. Both replay
+  kinds return verdict, refreshed claim, confidence, samples, and a concise
+  reason; `recordReplayResult()` persists the verdict through
+  `VerificationStore`.
+- Every registry rule now declares `replayKind` (`token`, `plan`, or `null`);
+  `context-compaction` uses plan replay, other replay-gated rules use token
+  replay, and non-replay modes declare `null`.
+- `tests/unit/replay.test.mjs` covers a passing detector replay, a stale claim
+  difference, a canned plan replay, persisted verification state, and a fake
+  `fetch` that fails if a network call is attempted.
+- Verification:
+  - `node --test tests/unit/replay.test.mjs tests/unit/apply.test.mjs tests/unit/apply-local.test.mjs` ✅
+  - `npm test` ✅ (105/105)
+  - `npm run analyze -- --findings` ✅ (default OpenCode DB, read-only)
+
 ### Step 9: Documentation, report surfacing and exit review (1 h)
 
 1. `docs/rules.md`: registry shape, rule ids, applicability vocabulary,
@@ -409,9 +607,30 @@ the PASS headline and sample count.
 3. Update `docs/plans/README.md` and this file's status once the exit
    checklist is fully green.
 
-Manual check: `npm run analyze --` includes a rule block, a
+Manual check: `npm run analyze -- --findings` includes a rule block, a
 recommendation block, and no rule in the registry is missing from either
 a finding, a recommendation, or a skipped entry with reason.
+
+Step 9 execution note (2026-10-23):
+
+- Added `docs/rules.md` documenting the registry, implemented applicability
+  thresholds, confidence, overlap, recommendation decisions, verification,
+  apply/undo, replay, and the read-only history boundary.
+- Added `docs/rules-unsupported.md` for excluded Claude integrations, missing
+  OpenCode request interception/live replay, and the rule-port parity gap.
+- `--findings --json` and `--report --json` include a registry-wide coverage
+  block: each rule is `found`, `skipped`, or `error`, with counts, verification
+  mode/state, replay kind, and a reason. The text findings/report output omits
+  this block. Skips currently report that no finding qualified in the current
+  data window; per-threshold diagnostics remain a gap.
+- The README and project phase status now show Phase 4 as in progress, not
+  complete. The exact Phase 3 exit snapshot is still unavailable, and the 15
+  additional detectors have not all been audited line-by-line against their
+  reference functions/fixtures. No current rule maps to an applicable Munin
+  config setting, so the apply-success seam remains test-only while external
+  actions queue.
+- Verification: `npm test` ✅ (105/105); `npm run analyze -- --verify-state`
+  ✅ against the default OpenCode database in read-only mode.
 
 ## How to verify by hand
 

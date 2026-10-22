@@ -5,9 +5,18 @@
 //
 // stdout carries data only; warnings go to stderr. Exit: 0 on success, 1 on
 // runtime failure, 64 on usage errors.
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { loadConfig, readDataset } from "@munin/local";
-import { buildEvents, buildReport, MuninError } from "@munin/core";
+import {
+  acceptRisk,
+  buildEvents,
+  buildReport,
+  MuninError,
+  recordDecision,
+  resolveVerification,
+  RULES,
+} from "@munin/core";
 import {
   err,
   group,
@@ -45,7 +54,7 @@ const MODES = ["totals", "models", "sessions", "cache", "findings", "report", "e
 
 function printUsage() {
   console.error(
-    "Usage: node scripts/analyze-local.mjs [--totals|--models|--sessions|--cache|--findings|--report|--events] [--session <id>] [--check-privacy] [--db <path>] [--tz <zone>] [--json]",
+    "Usage: node scripts/analyze-local.mjs [--totals|--models|--sessions|--cache|--findings|--report|--events] [--session <id>] [--decide <viewed|applied|done|dismissed> <rule>] [--verify-state|--accept-risk <rule>] [--check-privacy] [--db <path>] [--tz <zone>] [--json]",
   );
 }
 
@@ -56,6 +65,9 @@ function parseArgs(argv) {
   let mode;
   let checkPrivacy = false;
   let json = false;
+  let decide;
+  let verifyState = false;
+  let acceptRiskRule;
 
   const withValue = (name) => {
     const value = argv[index + 1];
@@ -82,13 +94,195 @@ function parseArgs(argv) {
     else if (argument === "--json") json = true;
     else if (argument === "--db") db = withValue("--db");
     else if (argument === "--tz") tz = withValue("--tz");
-    else throw new Error(`unknown flag: ${argument}`);
+    else if (argument === "--decide") {
+      if (decide !== undefined) throw new Error("choose only one decision");
+      const status = withValue("--decide");
+      const rule = withValue("--decide");
+      if (!["viewed", "applied", "done", "dismissed"].includes(status)) {
+        throw new Error(`invalid decision status: ${status}`);
+      }
+      decide = { status, rule };
+    } else if (argument === "--verify-state") verifyState = true;
+    else if (argument === "--accept-risk") {
+      if (acceptRiskRule !== undefined) throw new Error("choose only one rule to accept risk for");
+      acceptRiskRule = withValue("--accept-risk");
+    } else throw new Error(`unknown flag: ${argument}`);
     index += 1;
   }
 
   if (mode !== undefined && checkPrivacy) throw new Error("choose only one mode");
-  if (mode === undefined && !checkPrivacy) throw new Error("choose a mode");
-  return { mode: mode ?? "privacy", checkPrivacy, json, db, tz, session };
+  if (decide !== undefined && checkPrivacy)
+    throw new Error("cannot decide during a privacy-only check");
+  if (checkPrivacy && (verifyState || acceptRiskRule !== undefined)) {
+    throw new Error("cannot verify during a privacy-only check");
+  }
+  const stateActionCount =
+    Number(decide !== undefined) + Number(verifyState) + Number(acceptRiskRule !== undefined);
+  if (stateActionCount > 1) throw new Error("choose only one state action");
+  if (mode === undefined && !checkPrivacy && stateActionCount === 0)
+    throw new Error("choose a mode");
+  return {
+    mode: mode ?? (stateActionCount === 0 ? "privacy" : "findings"),
+    checkPrivacy,
+    json,
+    db,
+    tz,
+    session,
+    decide,
+    verifyState,
+    acceptRiskRule,
+  };
+}
+
+const DECISION_STATUSES = new Set(["viewed", "applied", "done", "dismissed"]);
+
+function decisionStore(path) {
+  return {
+    load() {
+      if (!existsSync(path)) return {};
+      const parsed = JSON.parse(readFileSync(path, "utf8"));
+      if (parsed === null || Array.isArray(parsed) || typeof parsed !== "object") {
+        throw new Error(`Invalid decisions file: ${path}`);
+      }
+      for (const [rule, row] of Object.entries(parsed)) {
+        if (
+          row === null ||
+          typeof row !== "object" ||
+          row.rule !== rule ||
+          !DECISION_STATUSES.has(row.status) ||
+          typeof row.at !== "string"
+        ) {
+          throw new Error(`Invalid decision record for '${rule}' in ${path}`);
+        }
+      }
+      return parsed;
+    },
+    save(all) {
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, `${JSON.stringify(all, null, 2)}\n`, "utf8");
+    },
+  };
+}
+
+function verificationStore(path) {
+  return {
+    load() {
+      if (!existsSync(path)) return {};
+      const parsed = JSON.parse(readFileSync(path, "utf8"));
+      if (parsed === null || Array.isArray(parsed) || typeof parsed !== "object") {
+        throw new Error(`Invalid verifications file: ${path}`);
+      }
+      for (const [rule, row] of Object.entries(parsed)) {
+        if (
+          row === null ||
+          typeof row !== "object" ||
+          row.rule !== rule ||
+          !["not-required", "replay", "manual"].includes(row.mode) ||
+          !["passed", "failed", "inconclusive"].includes(row.state) ||
+          typeof row.at !== "string"
+        ) {
+          throw new Error(`Invalid verification record for '${rule}' in ${path}`);
+        }
+      }
+      return parsed;
+    },
+    save(all) {
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, `${JSON.stringify(all, null, 2)}\n`, "utf8");
+    },
+  };
+}
+
+function printVerificationState(records, onlyRule) {
+  heading("Verification state");
+  const definitions = onlyRule === undefined ? RULES : RULES.filter((rule) => rule.id === onlyRule);
+  if (definitions.length === 0) {
+    throw Object.assign(new Error(`unknown rule '${onlyRule}'`), { code: "rules.unknown-rule" });
+  }
+  for (const definition of definitions) {
+    const subject = {
+      verification: definition.verificationMode,
+      risk: definition.verificationMode === "not-required" ? "safe" : "needs-verification",
+    };
+    const resolved = resolveVerification(subject, records[definition.id] ?? null);
+    kv(
+      definition.id,
+      `state=${resolved.state} mode=${resolved.mode} canApply=${resolved.canApply ? "true" : "false"}`,
+    );
+    kv("headline", resolved.headline);
+    if (resolved.guidance !== null) kv("guidance", resolved.guidance);
+  }
+}
+
+function ruleCoverage(report, verificationRecords = {}) {
+  const findingCounts = new Map();
+  for (const finding of report.findings) {
+    findingCounts.set(finding.rule, (findingCounts.get(finding.rule) ?? 0) + 1);
+  }
+  const recommendationCounts = new Map();
+  for (const recommendation of report.recommendations) {
+    recommendationCounts.set(
+      recommendation.rule,
+      (recommendationCounts.get(recommendation.rule) ?? 0) + 1,
+    );
+  }
+  const errors = new Map(
+    report.dataHealth.detectorErrors.map((error) => [error.rule, error.message]),
+  );
+
+  return RULES.map((definition) => {
+    const findingCount = findingCounts.get(definition.id) ?? 0;
+    const recommendationCount = recommendationCounts.get(definition.id) ?? 0;
+    const error = errors.get(definition.id);
+    const subject = {
+      verification: definition.verificationMode,
+      risk: definition.verificationMode === "not-required" ? "safe" : "needs-verification",
+    };
+    const resolved = resolveVerification(subject, verificationRecords[definition.id] ?? null);
+    const advisories = report.findings.filter(
+      (finding) => finding.rule === definition.id && finding.advisory,
+    ).length;
+
+    let outcome;
+    let reason;
+    if (error !== undefined) {
+      outcome = "error";
+      reason = error;
+    } else if (findingCount === 0) {
+      outcome = "skipped";
+      reason = "No qualifying finding in the current data window; detector returned no result.";
+    } else {
+      outcome = "found";
+      reason =
+        recommendationCount > 0
+          ? "Finding and actionable recommendation emitted."
+          : advisories === findingCount
+            ? "Finding is advisory; advisories intentionally have no action recommendation."
+            : "Finding emitted but no actionable recommendation was generated.";
+    }
+
+    return {
+      rule: definition.id,
+      outcome,
+      findings: findingCount,
+      recommendations: recommendationCount,
+      verificationMode: resolved.mode,
+      verificationState: resolved.state,
+      canApply: findingCount > 0 && resolved.canApply,
+      replayKind: definition.replayKind,
+      reason,
+    };
+  });
+}
+
+function printRuleCoverage(report, verificationRecords) {
+  heading("Rule coverage");
+  for (const row of ruleCoverage(report, verificationRecords)) {
+    console.log(
+      `  ${row.rule}  ${row.outcome}  findings=${row.findings} recommendations=${row.recommendations} verification=${row.verificationState}/${row.verificationMode} canApply=${row.canApply ? "true" : "false"} replay=${row.replayKind ?? "none"}`,
+    );
+    kv("reason", row.reason);
+  }
 }
 
 /* ---------- formatting: plain ASCII, deterministic, no box drawing ---------- */
@@ -323,7 +517,7 @@ function printCache(report, dbPath, showDb = true) {
   }
 }
 
-function printFindings(report, dbPath, showDb = true) {
+function printFindings(report, dbPath, showDb = true, verificationRecords = {}) {
   heading("Findings");
   if (showDb) kv("db", dbPath);
   const s = report.savings;
@@ -372,6 +566,9 @@ function printFindings(report, dbPath, showDb = true) {
     kv("calculation", finding.savings.calculation);
     for (const assumption of finding.savings.assumptions) kv("assumption", assumption);
     kv("fix", finding.fix);
+    if (Array.isArray(finding.overlapWith) && finding.overlapWith.length > 0) {
+      kv("overlap", `shares claimed calls with ${finding.overlapWith.join(", ")}`);
+    }
     if (finding.observations.length > 0) {
       kv("observations", `${finding.observations.length} (first 5 shown)`);
       for (const observation of finding.observations.slice(0, 5)) {
@@ -379,6 +576,25 @@ function printFindings(report, dbPath, showDb = true) {
       }
     }
   });
+
+  heading("Recommendations");
+  if (report.recommendations.length === 0) {
+    console.log("  none");
+  } else {
+    for (const recommendation of report.recommendations) {
+      const decided = recommendation.decisionAt
+        ? `${recommendation.status} ${recommendation.decisionAt.slice(0, 10)}`
+        : recommendation.status;
+      console.log(`  [${recommendation.tier}] ${recommendation.action}  ${recommendation.rule}`);
+      kv("rationale", recommendation.rationale);
+      kv(
+        "confidence",
+        `${recommendation.confidence} | ${usd(recommendation.windowUsd)} window | ${group(recommendation.affectedCalls)} calls`,
+      );
+      kv("decision", decided);
+      kv("actions", recommendation.actions.join(", "));
+    }
+  }
 }
 
 function printEvents(priced, filter, label) {
@@ -452,7 +668,7 @@ function printSessionReport(report, priced, id, dbPath) {
   printEvents(priced, (sessionId) => sessionId === id, "Session calls");
 }
 
-function printReportText(report, dbPath) {
+function printReportText(report, dbPath, verificationRecords) {
   heading("Report");
   kv("db", dbPath);
   kv("time zone", report.timeZone);
@@ -461,7 +677,7 @@ function printReportText(report, dbPath) {
   printModels(report, dbPath, false);
   printSessions(report, dbPath, false);
   printCache(report, dbPath, false);
-  printFindings(report, dbPath, false);
+  printFindings(report, dbPath, false, verificationRecords);
   const h = report.dataHealth;
   heading("Data health");
   kv("schema", h.schema);
@@ -595,7 +811,7 @@ function failedAttempt(attempt) {
   };
 }
 
-function jsonPayload(report, priced, mode, dbPath, zone, session) {
+function jsonPayload(report, priced, mode, dbPath, zone, session, verificationRecords) {
   const header = { db: dbPath, timeZone: zone };
   switch (mode) {
     case "totals":
@@ -607,7 +823,13 @@ function jsonPayload(report, priced, mode, dbPath, zone, session) {
     case "cache":
       return { ...header, cache: report.cache };
     case "findings":
-      return { ...header, savings: report.savings, findings: report.findings };
+      return {
+        ...header,
+        savings: report.savings,
+        findings: report.findings,
+        recommendations: report.recommendations,
+        ruleCoverage: ruleCoverage(report, verificationRecords),
+      };
     case "events":
       return {
         ...header,
@@ -633,7 +855,7 @@ function jsonPayload(report, priced, mode, dbPath, zone, session) {
       };
     }
     case "report":
-      return report;
+      return { ...report, ruleCoverage: ruleCoverage(report, verificationRecords) };
     default:
       throw new Error(`unreachable mode ${mode}`);
   }
@@ -667,6 +889,8 @@ function main() {
 
   const options = args.db === undefined ? {} : { db: args.db };
   const config = loadConfig(options);
+  const decisions = decisionStore(config.paths.ledger.decisions);
+  const verifications = verificationStore(config.paths.ledger.verifications);
 
   if (!existsSync(config.dbPath)) {
     console.error(`${err.red(`[source.missing-db]`)} Database not found: ${config.dbPath}`);
@@ -675,8 +899,14 @@ function main() {
 
   let dataset;
   let report;
+  let decisionState;
+  let verificationState = {};
   let priced;
   try {
+    decisionState = decisions.load();
+    if (args.mode !== "privacy" || args.verifyState || args.acceptRiskRule !== undefined) {
+      verificationState = verifications.load();
+    }
     dataset = readDataset(options);
     warningLines(dataset.warnings);
     if (dataset.warnings.some((warning) => warning.code === "source.missing-db")) {
@@ -684,7 +914,44 @@ function main() {
       process.exit(1);
     }
     priced = buildEvents(dataset);
-    report = buildReport(dataset, { zone: args.tz });
+    report = buildReport(dataset, { zone: args.tz, decisions: decisionState });
+    if (args.decide !== undefined) {
+      const exists = report.recommendations.some((row) => row.rule === args.decide.rule);
+      if (!exists) {
+        throw Object.assign(
+          new Error(`no actionable recommendation for rule '${args.decide.rule}'`),
+          {
+            code: "recommendation.not-found",
+          },
+        );
+      }
+      recordDecision(decisions, args.decide.rule, args.decide.status, new Date().toISOString());
+      decisionState = decisions.load();
+      report = buildReport(dataset, { zone: args.tz, decisions: decisionState });
+    }
+    if (args.acceptRiskRule !== undefined) {
+      const definition = RULES.find((rule) => rule.id === args.acceptRiskRule);
+      if (definition === undefined) {
+        throw Object.assign(new Error(`unknown rule '${args.acceptRiskRule}'`), {
+          code: "rules.unknown-rule",
+        });
+      }
+      if (definition.verificationMode !== "manual") {
+        throw Object.assign(
+          new Error(
+            `rule '${args.acceptRiskRule}' uses ${definition.verificationMode} verification, not manual risk acceptance`,
+          ),
+          { code: "verification.risk-not-manual" },
+        );
+      }
+      acceptRisk(
+        verifications,
+        definition.id,
+        definition.verificationMode,
+        new Date().toISOString(),
+      );
+      verificationState = verifications.load();
+    }
   } catch (error) {
     expectedFailure(error);
     return;
@@ -695,11 +962,28 @@ function main() {
     return;
   }
 
+  if (args.verifyState) {
+    printVerificationState(verificationState);
+    return;
+  }
+  if (args.acceptRiskRule !== undefined) {
+    printVerificationState(verificationState, args.acceptRiskRule);
+    return;
+  }
+
   if (args.json) {
     try {
       console.log(
         JSON.stringify(
-          jsonPayload(report, priced, args.mode, config.dbPath, args.tz ?? "UTC", args.session),
+          jsonPayload(
+            report,
+            priced,
+            args.mode,
+            config.dbPath,
+            args.tz ?? "UTC",
+            args.session,
+            verificationState,
+          ),
           null,
           2,
         ),
@@ -724,7 +1008,7 @@ function main() {
       printCache(report, config.dbPath);
       return;
     case "findings":
-      printFindings(report, config.dbPath);
+      printFindings(report, config.dbPath, true, verificationState);
       return;
     case "events":
       printEvents(priced, undefined, "model calls");
@@ -733,7 +1017,7 @@ function main() {
       printSessionReport(report, priced, args.session, config.dbPath);
       return;
     case "report":
-      printReportText(report, config.dbPath);
+      printReportText(report, config.dbPath, verificationState);
       return;
     default:
       throw new Error(`unreachable mode ${args.mode}`);
