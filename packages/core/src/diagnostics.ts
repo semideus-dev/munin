@@ -67,6 +67,15 @@ export const WARNING_CODES = {
   analysisProjectLabelCollision: "analysis.project-label-collision",
   analysisInvalidFinding: "analysis.invalid-finding",
   analysisDetectorError: "analysis.detector-error",
+
+  stateCursorUnreadable: "state.cursor-unreadable",
+  stateLockRecovered: "state.lock-recovered",
+
+  ledgerSliceLinesSkipped: "ledger.slice-lines-skipped",
+  ledgerSnapshotLinesSkipped: "ledger.snapshot-lines-skipped",
+  ledgerReconciliationDrift: "ledger.reconciliation-drift",
+
+  watchFullRescan: "watch.full-rescan",
 } as const;
 
 export type WarningCode = (typeof WARNING_CODES)[keyof typeof WARNING_CODES];

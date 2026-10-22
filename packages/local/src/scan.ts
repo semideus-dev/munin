@@ -19,6 +19,7 @@ import {
   diffSnapshots,
   measureResults,
   resultsDays,
+  WARNING_CODES,
 } from "@munin/core";
 import { acquireScanLock } from "./lock.js";
 import { openLedgerStore } from "./ledger.js";
@@ -34,6 +35,10 @@ export interface ScanOptions {
   full?: boolean;
   repair?: boolean;
   checkPrivacy?: boolean;
+  /** Report view: only ledger events in the last N days. Snapshots stay full. */
+  sinceDays?: number;
+  /** Report view: only events whose project label or id contains this. */
+  project?: string;
   now?: () => Date;
 }
 
@@ -152,15 +157,15 @@ export function runScan(options: ScanOptions = {}): ScanResult {
       ),
       ...(cursorLoad.warning === undefined
         ? []
-        : [{ code: "state.cursor-unreadable", message: cursorLoad.warning, count: 1 }]),
+        : [{ code: WARNING_CODES.stateCursorUnreadable, message: cursorLoad.warning, count: 1 }]),
       ...(lock.warning === undefined
         ? []
-        : [{ code: "state.lock-recovered", message: lock.warning, count: 1 }]),
+        : [{ code: WARNING_CODES.stateLockRecovered, message: lock.warning, count: 1 }]),
       ...(previousSlices.skippedLines === 0
         ? []
         : [
             {
-              code: "ledger.slice-lines-skipped",
+              code: WARNING_CODES.ledgerSliceLinesSkipped,
               message: "Malformed slice journal lines were skipped",
               count: previousSlices.skippedLines,
             },
@@ -169,7 +174,7 @@ export function runScan(options: ScanOptions = {}): ScanResult {
         ? []
         : [
             {
-              code: "ledger.snapshot-lines-skipped",
+              code: WARNING_CODES.ledgerSnapshotLinesSkipped,
               message: "Malformed snapshot journal lines were skipped",
               count: previousSnapshots.skippedLines,
             },
@@ -178,13 +183,13 @@ export function runScan(options: ScanOptions = {}): ScanResult {
         ? []
         : [
             {
-              code: "ledger.reconciliation-drift",
+              code: WARNING_CODES.ledgerReconciliationDrift,
               message: `${reconciliation.length} session slice(s) differ from the full source read`,
               count: reconciliation.length,
             },
           ]),
     ];
-    const report = buildLedgerReport(mergedEvents, {
+    const ledgerOptions = {
       zone: options.zone ?? config.settings.tz,
       sourcePath: config.dbPath,
       sourceSchema: dataset.schema,
@@ -195,7 +200,24 @@ export function runScan(options: ScanOptions = {}): ScanResult {
         slicesReplaced: freshSlices.length,
         eventsTracked: mergedEvents.length,
       },
-    });
+    };
+    const viewEvents = filterView(mergedEvents, options, atMs);
+    const viewWarnings =
+      viewEvents.length === 0 && mergedEvents.length > 0
+        ? [
+            ...warnings,
+            {
+              code: WARNING_CODES.analysisNoEvents,
+              message: "The selected window contains no usage-bearing model calls",
+              count: 1,
+            },
+          ]
+        : warnings;
+    const report = buildLedgerReport(viewEvents, { ...ledgerOptions, warnings: viewWarnings });
+    // The snapshot is the whole ledger, never a filtered view: trends must not
+    // depend on which flags a single scan happened to use.
+    const snapshotReport =
+      viewEvents === mergedEvents ? report : buildLedgerReport(mergedEvents, ledgerOptions);
 
     const snapshot = makeSnapshot({
       id: (previousSnapshots.snapshots.at(-1)?.id ?? 0) + 1,
@@ -207,7 +229,7 @@ export function runScan(options: ScanOptions = {}): ScanResult {
       slicesReplaced: freshSlices.length,
       sessionsTracked: merged.sessions,
       eventsTracked: mergedEvents.length,
-      report,
+      report: snapshotReport,
     });
     const previousSnapshot = previousSnapshots.snapshots.at(-1);
     const snapshotDiff =
@@ -418,6 +440,33 @@ function groupEvents(events: readonly UsageEvent[]): Map<string, UsageEvent[]> {
     else row.push(event);
   }
   return grouped;
+}
+
+/**
+ * Apply the report-view flags to ledger events. The ledger itself always keeps
+ * every slice; `--days` and `--project` change what this scan reports, not what
+ * it stores or what the snapshot records.
+ */
+function filterView(
+  events: UsageEvent[],
+  options: Pick<ScanOptions, "sinceDays" | "project">,
+  nowMs: number,
+): UsageEvent[] {
+  if (options.project === undefined && options.sinceDays === undefined) return events;
+  const needle = options.project?.toLowerCase();
+  const cutoff = options.sinceDays === undefined ? null : nowMs - options.sinceDays * 86_400_000;
+  return events.filter((event) => {
+    if (needle !== undefined) {
+      const label = event.project.toLowerCase();
+      const id = event.projectId?.toLowerCase();
+      if (!label.includes(needle) && !(id?.includes(needle) ?? false)) return false;
+    }
+    if (cutoff !== null) {
+      const ts = Date.parse(event.ts);
+      if (!Number.isFinite(ts) || ts < cutoff) return false;
+    }
+    return true;
+  });
 }
 
 function reconcileSlices(

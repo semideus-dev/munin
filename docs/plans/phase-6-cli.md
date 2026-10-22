@@ -1,6 +1,9 @@
 # Phase 6 plan: the real CLI, plus the OpenCode guard/statusline plugin
 
-Status: planned
+Status: in progress. Step 0 (Phase 5 manual exit check) is pending; Step 1
+(command table, dispatcher, help/status, exit and JSON plumbing), Step 2
+(read-only report commands) and Step 3 (scan and live over the runtime) are
+complete.
 Owner: team
 Scope: replace the `--version`-only CLI stub with the product command table
 from the parity matrix, promote the Phase 5 runtime behind real commands,
@@ -22,9 +25,11 @@ not a fork of it.
 
 ## Current situation (2026-10-23)
 
-- `apps/cli/src/cli.ts` is a 15-line stub: `--version`, anything else prints a
-  notice and exits 1. Exit codes already follow `docs/diagnostics.md`
-  (0 ok, 1 runtime, 2 unsupported, 64 usage) through `apps/cli/src/exit.ts`.
+- `apps/cli/src/cli.ts` now dispatches through the product command table.
+  Help, `help all`, per-command `--help`, the XDG environment block, and the
+  shared exit/JSON contract are wired. The read-only report commands run on
+  the shared core path; commands still being ported exit 2 with
+  `cli.not-implemented`.
 - `scripts/analyze-local.mjs` (Phase 3) and `scripts/scan-local.mjs`
   (Phase 5) are the real surfaces today: totals, models, sessions, cache,
   findings, report, decide/verify-state/accept-risk, full/incremental scan,
@@ -88,6 +93,11 @@ Replace the stub dispatcher with the real command table.
   - `munin --version` unchanged; `--json` on a failing command emits exactly
     one valid JSON document.
 
+Execution (2026-10-23): complete. The table, aliases, four help groups,
+per-command help, environment block, exit mapping, JSON failure shape, and
+dispatch tests are in place. Until Step 2, bare `munin` shows help/status and
+recognised handlers that are not wired yet exit 2.
+
 ### Step 2. Read-only report commands (about 4 hours)
 
 The Phase 3 harness modes become commands. Port semantics one command at a
@@ -123,6 +133,18 @@ time from the reference `apps/cli` source.
   - Privacy grep from Phase 5 (`packages/core` has no `node:fs` /
     `process.env`) still passes.
 
+Execution (2026-10-23): complete. `apps/cli/src/data.ts` is the single read
+path (load config, `readDataset` with `--days`, `--project` filter, one
+`buildEvents` + `buildReport`); `apps/cli/src/render.ts` is the CLI port of the
+harness formatters; `apps/cli/src/commands-report.ts` holds the handlers, and
+`commands.ts` wires them for `profile`, `scan`, `sessions`, `why`, `tokens`,
+`waste`, `show`, `providers`, and `privacy`. Bare `munin` now runs the profile
+instead of printing help. `tests/unit/cli-report.test.mjs` pins profile totals,
+window and savings, the session list, and scan findings/recommendations against
+`scripts/analyze-local.mjs` on one fixture DB, pins `show <rule>` against
+`--findings`, and covers the missing-DB exit path. New `cli.*` and
+`rules.unknown-rule` codes are registered in `docs/diagnostics.md`.
+
 ### Step 3. Scan and live over the shared runtime (about 3 hours)
 
 Promote the Phase 5 harness onto product commands; the library seam already
@@ -147,6 +169,23 @@ exists in `packages/local/src/scan.ts`.
   - Run `munin scan` and `munin live` concurrently: the lock message shows
     and neither corrupts the ledger.
   - Two watch instances: second one refuses or warns per the lock policy.
+
+Execution (2026-10-23): complete. `munin scan` now runs the Phase 5 locked scan
+(`runScan`) and renders the scan summary (mode, sessions read, slices replaced,
+tracked, reconciliation, snapshot trend) ahead of the Step 2 report sections;
+`--full`, `--repair` and `--tz` are wired, and `--days`/`--project` filter the
+reported view while the ledger and snapshot stay full. `munin live` runs
+`createScanWatcher` as a streaming log: one compact cycle line per change, quiet
+on unchanged ticks, warnings and full-rescan notices to stderr once each, and
+`--interval N` (minimum 500 ms; `--json` streams one event per line). New
+`apps/cli/src/scan-support.ts` maps flags and runtime failures to `MuninError`
+(`state.lock-held`, `state.lock-unremovable`, `source.*`, `ledger.scan-failed`),
+and `apps/cli/src/commands-live.ts` holds the watch handler. The runtime codes
+(`state.*`, `ledger.*`, `watch.*`) are now in `WARNING_CODES` and registered in
+`docs/diagnostics.md`. `tests/unit/cli-scan.test.mjs` covers full/incremental
+totals, the `--project` view against a full ledger, lock contention, missing DB,
+the `--repair` usage error, and a `live` SIGTERM smoke test; the Step 2 scan pin
+still passes through the ledger path.
 
 ### Step 4. Report HTML (about 2 hours)
 

@@ -7,7 +7,9 @@ belongs in the report.
 ## Streams
 
 - **stdout** carries only the requested data. With `--json`, stdout is a single
-  valid JSON document: no banners, no progress.
+  valid JSON document: no banners, no progress. A streaming command (`munin
+live`) is the exception: with `--json` it writes one JSON object per event,
+  one per line.
 - **stderr** carries warnings, progress, and errors.
 - **The exit code** is the signal scripts should branch on.
 
@@ -44,6 +46,25 @@ new MuninError({
 
 Codes are dot-namespaced (`config.*`, `source.*`, `ledger.*`, `action.*`). A code
 is stable once released; change the message, not the code.
+
+The command dispatcher also uses these `cli.*` codes:
+
+| Code                   | Exit | Meaning                                            |
+| ---------------------- | ---- | -------------------------------------------------- |
+| `cli.unknown-command`  | `64` | no command by that name in the command table       |
+| `cli.missing-value`    | `64` | a value flag was given without a value             |
+| `cli.missing-argument` | `64` | a required positional argument was omitted         |
+| `cli.invalid-value`    | `64` | a value flag was given a value that cannot be used |
+| `cli.not-implemented`  | `2`  | a recognised command is not wired in this build    |
+
+Command-specific codes follow the same rules:
+
+| Code                     | Exit | Meaning                                                 |
+| ------------------------ | ---- | ------------------------------------------------------- |
+| `rules.unknown-rule`     | `64` | a rule id passed to `show` is not in the registry       |
+| `state.lock-held`        | `1`  | another writer holds the scan lock                      |
+| `state.lock-unremovable` | `1`  | a stale scan lock exists and cannot be removed          |
+| `ledger.scan-failed`     | `1`  | a scan failed for a reason without a more specific code |
 
 Rules:
 
@@ -84,6 +105,18 @@ aggregate reconciliation. Phase 3 adds `price.*` and `analysis.*` codes.
 
 Aggregation: one line per code, with `count` when it covers many records. Do not
 print the same warning N times.
+
+Phase 5 adds `state.*`, `ledger.*` and `watch.*` codes for the scan and watch
+runtime. `scan` and `live` both print them to stderr, deduplicated by code.
+
+| Code                            | Meaning                                                         |
+| ------------------------------- | --------------------------------------------------------------- |
+| `state.cursor-unreadable`       | the stored scan cursor could not be read; the next scan is full |
+| `state.lock-recovered`          | a provably stale writer lock was reclaimed                      |
+| `ledger.slice-lines-skipped`    | malformed slice journal lines were skipped, with the count      |
+| `ledger.snapshot-lines-skipped` | malformed snapshot journal lines were skipped, with the count   |
+| `ledger.reconciliation-drift`   | a full read found session slices that differ from the ledger    |
+| `watch.full-rescan`             | `live` saw the source replaced or truncated and rescanned all   |
 
 ## JSON contract
 

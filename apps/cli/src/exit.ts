@@ -4,7 +4,7 @@
  * The mapping lives in the CLI, not in core: core names the failure, the
  * process decides what a shell should see. Documented in docs/diagnostics.md.
  */
-import { MuninError } from "@munin/core";
+import { MuninError, type SourceWarning } from "@munin/core";
 
 export const EXIT_CODES = {
   ok: 0,
@@ -15,12 +15,26 @@ export const EXIT_CODES = {
 
 export type ExitCode = (typeof EXIT_CODES)[keyof typeof EXIT_CODES];
 
+export interface SuccessPayload<T> {
+  ok: true;
+  data: T;
+  warnings: SourceWarning[];
+}
+
 export interface ErrorPayload {
   ok: false;
   error: {
     code: string;
     message: string;
   };
+}
+
+/** The `--json` success shape. Warnings are always present, even when empty. */
+export function successPayload<T>(
+  data: T,
+  warnings: readonly SourceWarning[] = [],
+): SuccessPayload<T> {
+  return { ok: true, data, warnings: [...warnings] };
 }
 
 /** Map an expected failure to its documented exit code. */

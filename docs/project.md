@@ -440,6 +440,10 @@ results comparison port, privacy checks, error recovery).
 **Goal:** Recreate the original command-line experience on top of the
 shared engine.
 
+**Status:** In progress. Step 0 (Phase 5 manual exit check) is pending;
+Steps 1-3 (command table, help/status, exit and JSON plumbing, read-only report
+commands, and scan/live over the runtime) are complete.
+
 ---
 
 Feature Difficulty Deliverable
