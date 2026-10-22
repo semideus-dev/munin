@@ -12,59 +12,62 @@ backend/database stack.
 
 ## Scope decisions
 
--   **Keep:** core, local, CLI, supported data-source readers, pricing,
-    ingestion, analysis, optimization rules, reports, live monitoring,
-    ledger, replay/verification, apply/undo, and generic configuration.
--   **Exclude:** `mods/optimaizr` and Claude-specific hooks, statusline
-    integrations, and plugin setup.
--   **Add:** an interactive local dashboard and OpenCode 2.x support.
--   **Preserve:** OpenCode 1.x compatibility and the original shared
-    engine behavior.
--   **Runtime:** Bun as the preferred development runtime where it
-    works. Keep npm available for the original-compatible build workflow
-    if Bun's workspace scripts cause issues.
--   **Avoid:** replacing the existing architecture with an unrelated
-    framework or database stack just for the sake of it.
+- **Keep:** core, local, CLI, supported data-source readers, pricing,
+  ingestion, analysis, optimization rules, reports, live monitoring,
+  ledger, replay/verification, apply/undo, and generic configuration.
+- **Exclude:** `mods/optimaizr` and Claude-specific hooks, statusline
+  integrations, and plugin setup.
+- **Add:** an interactive local dashboard and OpenCode 2.x support.
+- **Preserve:** OpenCode 1.x compatibility and the original shared
+  engine behavior.
+- **Runtime:** Bun as the preferred development runtime where it
+  works. Keep npm available for the original-compatible build workflow
+  if Bun's workspace scripts cause issues.
+- **Avoid:** replacing the existing architecture with an unrelated
+  framework or database stack just for the sake of it.
 
 Difficulty ratings are relative to this project and a 24-hour hackathon,
 assuming one developer comfortable with TypeScript. They are not
 guaranteed time estimates.
 
-------------------------------------------------------------------------
+---
 
 ## 1. Target architecture
 
 The CLI and dashboard should call the same core functions. The dashboard
 must not implement its own token calculations or optimization logic.
 
-  -----------------------------------------------------------------------
-  Layer                               Responsibility
-  ----------------------------------- -----------------------------------
-  Local data sources                  OpenCode 1.x and 2.x plus other
-                                      readers confirmed in the original
-                                      repository inventory.
+---
 
-  Shared core                         Normalization, pricing, token/cost
-                                      calculations, caching analysis,
-                                      rules, recommendations, and
-                                      reports.
+Layer Responsibility
 
-  Local runtime                       Read-only source access, local
-                                      ledger, incremental scanning, live
-                                      refresh, replay and verification.
+---
 
-  CLI                                 Commands, diagnostics, reports,
-                                      live monitoring, apply/undo and
-                                      verification where supported.
+Local data sources OpenCode 1.x and 2.x plus other
+readers confirmed in the original
+repository inventory.
 
-  Dashboard                           Interactive local views for
-                                      overview, sessions, usage
-                                      breakdowns and recommendations.
-  -----------------------------------------------------------------------
+Shared core Normalization, pricing, token/cost
+calculations, caching analysis,
+rules, recommendations, and
+reports.
+
+Local runtime Read-only source access, local
+ledger, incremental scanning, live
+refresh, replay and verification.
+
+CLI Commands, diagnostics, reports,
+live monitoring, apply/undo and
+verification where supported.
+
+Dashboard Interactive local views for
+overview, sessions, usage
+breakdowns and recommendations.
+-----------------------------------------------------------------------
 
 ### Suggested project layout
 
-``` text
+```text
 optimaizr-rebuild/
 ├── package.json
 ├── tsconfig.base.json
@@ -86,16 +89,16 @@ this structure; do not blindly copy names.
 
 ### Runtime decisions
 
--   Prefer Bun for development where compatible; retain npm as a
-    reliable fallback while workspace scripts are being validated.
--   Keep TypeScript and ESM, and preserve original package boundaries
-    where practical.
--   No remote server, authentication, or separate database server is
-    required for the first local version.
--   Keep source ingestion read-only; the Optimaizr ledger stores derived
-    snapshots and state, not a replacement for OpenCode history.
+- Prefer Bun for development where compatible; retain npm as a
+  reliable fallback while workspace scripts are being validated.
+- Keep TypeScript and ESM, and preserve original package boundaries
+  where practical.
+- No remote server, authentication, or separate database server is
+  required for the first local version.
+- Keep source ingestion read-only; the Optimaizr ledger stores derived
+  snapshots and state, not a replacement for OpenCode history.
 
-------------------------------------------------------------------------
+---
 
 ## Phase 0 --- Repository reconnaissance and scope
 
@@ -103,29 +106,32 @@ this structure; do not blindly copy names.
 **Goal:** Understand the original behavior before writing the
 replacement.
 
-  ------------------------------------------------------------------------
-  Feature / task                          Difficulty Deliverable
-  --------------------- ---------------------------- ---------------------
-  Inspect root scripts                           1/5 Build and dependency
-  and workspaces                                     map
+---
 
-  Trace core ingestion                           2/5 Data-flow diagram
-  pipeline                                           
+Feature / task Difficulty Deliverable
 
-  Map providers and                              2/5 Source compatibility
-  database readers                                   matrix
+---
 
-  Identify pricing,                              2/5 Feature checklist
-  rules and report                                   
-  modules                                            
+Inspect root scripts 1/5 Build and dependency
+and workspaces map
 
-  Identify                                       1/5 Explicit exclusion
-  Claude-specific                                    list
-  integrations                                       
+Trace core ingestion 2/5 Data-flow diagram
+pipeline
 
-  Establish original                             2/5 Known-good reference
-  build/test baseline                                
-  ------------------------------------------------------------------------
+Map providers and 2/5 Source compatibility
+database readers matrix
+
+Identify pricing, 2/5 Feature checklist
+rules and report  
+modules
+
+Identify 1/5 Explicit exclusion
+Claude-specific list
+integrations
+
+Establish original 2/5 Known-good reference
+build/test baseline
+------------------------------------------------------------------------
 
 ### Implementation steps
 
@@ -145,7 +151,7 @@ optimization rule.
 **Exit criterion:** You can explain how one OpenCode session becomes an
 Optimaizr report.
 
-------------------------------------------------------------------------
+---
 
 ## Phase 1 --- Workspace, build system and shared data model
 
@@ -153,25 +159,27 @@ Optimaizr report.
 **Goal:** Establish a clean project that builds before implementing
 product features.
 
-  Feature                              Difficulty Deliverable
-  ---------------------------------- ------------ -------------------------------------
-  TypeScript and ESM configuration            2/5 Shared compiler settings
-  Workspace packages                          2/5 `core`, `local`, `cli`, `dashboard`
-  Shared types                                3/5 Session, message, usage, tool event
-  Configuration and environment               2/5 Local paths and settings
-  Logging and error conventions               2/5 Consistent diagnostics
-  Unit test setup                             2/5 Fixtures and deterministic tests
-  Bun/npm workflow                            2/5 Repeatable install/build/test
+Feature Difficulty Deliverable
+
+---
+
+TypeScript and ESM configuration 2/5 Shared compiler settings
+Workspace packages 2/5 `core`, `local`, `cli`, `dashboard`
+Shared types 3/5 Session, message, usage, tool event
+Configuration and environment 2/5 Local paths and settings
+Logging and error conventions 2/5 Consistent diagnostics
+Unit test setup 2/5 Fixtures and deterministic tests
+Bun/npm workflow 2/5 Repeatable install/build/test
 
 ### Implementation steps
 
--   Use TypeScript and ESM, and make Bun the preferred development tool
-    where it works.
--   Define normalized types for provider, model, session, timestamp,
-    token categories, cost and tool events.
--   Keep optional source fields optional rather than inventing missing
-    data.
--   Avoid duplicating business logic across the CLI and dashboard.
+- Use TypeScript and ESM, and make Bun the preferred development tool
+  where it works.
+- Define normalized types for provider, model, session, timestamp,
+  token categories, cost and tool events.
+- Keep optional source fields optional rather than inventing missing
+  data.
+- Avoid duplicating business logic across the CLI and dashboard.
 
 ### Phase 1 summary
 
@@ -184,7 +192,7 @@ packages and runs tests.
 Status: complete on 2026-10-22 with the dashboard deferred to Phase 7. The
 executed scope and exit record are in `docs/plans/phase-1-completion.md`.
 
-------------------------------------------------------------------------
+---
 
 ## Phase 2 --- Local data ingestion and OpenCode compatibility
 
@@ -192,34 +200,37 @@ executed scope and exit record are in `docs/plans/phase-1-completion.md`.
 **Goal:** Read real coding-agent history and convert it into normalized
 records.
 
-  ------------------------------------------------------------------------
-  Feature                                 Difficulty Deliverable
-  --------------------- ---------------------------- ---------------------
-  Read local SQLite                              3/5 Read-only access
-  databases                                          
+---
 
-  OpenCode 1.x reader                            3/5 `session`, `message`,
-                                                     `part`
+Feature Difficulty Deliverable
 
-  OpenCode 2.x reader                            4/5 `session_v2`,
-                                                     `session_message`
+---
 
-  Parse message and                              4/5 JSON and tool-event
-  part payloads                                      normalization
+Read local SQLite 3/5 Read-only access
+databases
 
-  Extract token and                              4/5 Provider-reported
-  cost metadata                                      usage
+OpenCode 1.x reader 3/5 `session`, `message`,
+`part`
 
-  Session discovery and                          3/5 Old and recent
-  pagination                                         sessions
+OpenCode 2.x reader 4/5 `session_v2`,
+`session_message`
 
-  Mixed-schema handling                          4/5 Avoid
-                                                     duplicate/missing
-                                                     history
+Parse message and 4/5 JSON and tool-event
+part payloads normalization
 
-  Other original source                       3--5/5 Preserve inventoried
-  readers                                            providers
-  ------------------------------------------------------------------------
+Extract token and 4/5 Provider-reported
+cost metadata usage
+
+Session discovery and 3/5 Old and recent
+pagination sessions
+
+Mixed-schema handling 4/5 Avoid
+duplicate/missing
+history
+
+Other original source 3--5/5 Preserve inventoried
+readers providers
+------------------------------------------------------------------------
 
 ### Implementation steps
 
@@ -245,33 +256,35 @@ Status: complete on 2026-10-22 (commit `71e5de0`). The executed scope and exit
 record are in `docs/plans/phase-2-readers.md`. The two documentation gaps
 carried out of Phase 2 were closed at the start of Phase 3 Step 0.
 
-------------------------------------------------------------------------
+---
 
 ## Phase 3 --- Analysis engine, pricing and reporting
 
 **Difficulty:** 4/5\
 **Goal:** Turn raw sessions into accurate usage and cost analysis.
 
-  Feature                             Difficulty Deliverable
-  --------------------------------- ------------ ----------------------------------
-  Provider/model pricing registry            3/5 Versioned pricing and units
-  Token and cost calculations                3/5 Deterministic calculations
-  Session aggregation                        2/5 Usage by session and time
-  Model/provider breakdown                   2/5 Compare model usage
-  Cache read/write analysis                  4/5 Separate cache categories
-  Repeated-work detection                    4/5 Repeated tool operations
-  Waste/savings estimates                    4/5 Evidence-based potential savings
-  Structured reports                         3/5 Reusable output for both UIs
+Feature Difficulty Deliverable
+
+---
+
+Provider/model pricing registry 3/5 Versioned pricing and units
+Token and cost calculations 3/5 Deterministic calculations
+Session aggregation 2/5 Usage by session and time
+Model/provider breakdown 2/5 Compare model usage
+Cache read/write analysis 4/5 Separate cache categories
+Repeated-work detection 4/5 Repeated tool operations
+Waste/savings estimates 4/5 Evidence-based potential savings
+Structured reports 3/5 Reusable output for both UIs
 
 ### Implementation steps
 
--   Separate observed cost, estimated cost and potential savings.
--   Use provider-reported usage when available; do not invent token
-    counts.
--   Use model-specific input, output, cache-read and cache-write prices
-    where applicable.
--   Implement repeated-work detection based on the original behavior,
-    not broad claims of semantic equivalence.
+- Separate observed cost, estimated cost and potential savings.
+- Use provider-reported usage when available; do not invent token
+  counts.
+- Use model-specific input, output, cache-read and cache-write prices
+  where applicable.
+- Implement repeated-work detection based on the original behavior,
+  not broad claims of semantic equivalence.
 
 ### Phase 3 summary
 
@@ -281,7 +294,16 @@ and produces structured findings independently of the interfaces.
 **Exit criterion:** Known fixtures produce deterministic totals and
 every cost/savings estimate has an explainable calculation.
 
-------------------------------------------------------------------------
+Status: complete on 2026-10-22. The executed scope and exit record are in
+`docs/plans/phase-3-analysis.md`: every call priced (observed headline, dated
+list-price estimate, token-only unpriced), deterministic aggregates, cache
+analysis, two explanation-complete repeated-work detectors, a byte-identical
+report with data health, and the `npm run analyze --` harness. 76 tests pass;
+totals and the $0.759757726 gpt-oss:120b charge reconcile exactly against SQL
+on a snapshot, and no state is written. Docs: `docs/analysis.md`,
+`docs/pricing.md`, `docs/reports.md`, ADR-0007, updated diagnostics.
+
+---
 
 ## Phase 4 --- Optimization rules and actionable recommendations
 
@@ -289,28 +311,31 @@ every cost/savings estimate has an explainable calculation.
 **Goal:** Recreate reusable optimization logic without Claude-specific
 hooks.
 
-  ------------------------------------------------------------------------
-  Feature                                 Difficulty Deliverable
-  --------------------- ---------------------------- ---------------------
-  Rule definitions and                           2/5 IDs, descriptions,
-  metadata                                           applicability
+---
 
-  Rule evaluation                                3/5 Check when a rule
-                                                     applies
+Feature Difficulty Deliverable
 
-  Recommendation                                 3/5 Evidence and
-  generation                                         trade-offs
+---
 
-  Rule application                               4/5 Safe supported
-                                                     changes
+Rule definitions and 2/5 IDs, descriptions,
+metadata applicability
 
-  Undo support                                   4/5 Restore prior state
+Rule evaluation 3/5 Check when a rule
+applies
 
-  Replay/verification                            5/5 Compare behavior and
-                                                     usage
+Recommendation 3/5 Evidence and
+generation trade-offs
 
-  Rule-specific tests                            3/5 Regression coverage
-  ------------------------------------------------------------------------
+Rule application 4/5 Safe supported
+changes
+
+Undo support 4/5 Restore prior state
+
+Replay/verification 5/5 Compare behavior and
+usage
+
+Rule-specific tests 3/5 Regression coverage
+------------------------------------------------------------------------
 
 ### Implementation steps
 
@@ -331,7 +356,7 @@ results from estimates.
 **Exit criterion:** Rules are independently tested, unsupported actions
 fail clearly, and apply/undo does not silently corrupt configuration.
 
-------------------------------------------------------------------------
+---
 
 ## Phase 5 --- Local runtime, ledger, live monitoring and privacy
 
@@ -339,41 +364,44 @@ fail clearly, and apply/undo does not silently corrupt configuration.
 **Goal:** Make Optimaizr useful during coding, not only for one-time
 reports.
 
-  ------------------------------------------------------------------------
-  Feature                                 Difficulty Deliverable
-  --------------------- ---------------------------- ---------------------
-  Local ledger                                   3/5 Analysis snapshots
-                                                     and state
+---
 
-  Incremental history                            4/5 Process newly
-  scanning                                           discovered activity
+Feature Difficulty Deliverable
 
-  Live monitoring                                4/5 Refresh reports as
-                                                     sessions change
+---
 
-  Snapshots                                      3/5 Compare analysis over
-                                                     time
+Local ledger 3/5 Analysis snapshots
+and state
 
-  Results comparison                             3/5 Before/after usage
-                                                     and trade-offs
+Incremental history 4/5 Process newly
+scanning discovered activity
 
-  Privacy controls                               3/5 Document local data
-                                                     handling
+Live monitoring 4/5 Refresh reports as
+sessions change
 
-  Error recovery                                 3/5 Locks, missing files,
-                                                     partial records
-  ------------------------------------------------------------------------
+Snapshots 3/5 Compare analysis over
+time
+
+Results comparison 3/5 Before/after usage
+and trade-offs
+
+Privacy controls 3/5 Document local data
+handling
+
+Error recovery 3/5 Locks, missing files,
+partial records
+------------------------------------------------------------------------
 
 ### Implementation steps
 
--   Keep the ledger separate from the source database; store derived
-    snapshots, rule actions and verification results.
--   Avoid persisting raw prompts unless the original behavior requires
-    it.
--   Start with polling/incremental scans rather than a complex streaming
-    architecture.
--   Make repeated scans idempotent so new sessions are not counted
-    twice.
+- Keep the ledger separate from the source database; store derived
+  snapshots, rule actions and verification results.
+- Avoid persisting raw prompts unless the original behavior requires
+  it.
+- Start with polling/incremental scans rather than a complex streaming
+  architecture.
+- Make repeated scans idempotent so new sessions are not counted
+  twice.
 
 ### Phase 5 summary
 
@@ -383,7 +411,7 @@ results over time.
 **Exit criterion:** A new OpenCode session is discovered without a
 restart, and repeated scans do not double-count usage.
 
-------------------------------------------------------------------------
+---
 
 ## Phase 6 --- CLI and commands
 
@@ -391,36 +419,39 @@ restart, and repeated scans do not double-count usage.
 **Goal:** Recreate the original command-line experience on top of the
 shared engine.
 
-  -------------------------------------------------------------------------
-  Feature                                  Difficulty Deliverable
-  ---------------------- ---------------------------- ---------------------
-  Main report command                             2/5 Usage and waste
-                                                      summary
+---
 
-  `help` and `status`                             1/5 Help and environment
-                                                      checks
+Feature Difficulty Deliverable
 
-  `sessions` and `why`                            2/5 Session listing and
-                                                      explanation
+---
 
-  `live`                                          3/5 Continuous local
-                                                      monitoring
+Main report command 2/5 Usage and waste
+summary
 
-  `results`                                       2/5 Before/after
-                                                      comparison
+`help` and `status` 1/5 Help and environment
+checks
 
-  `apply` and `undo`                              4/5 Supported rule
-                                                      actions
+`sessions` and `why` 2/5 Session listing and
+explanation
 
-  `verify`                                        5/5 Verification/replay
+`live` 3/5 Continuous local
+monitoring
 
-  `card` and output                               2/5 Compact readable
-  formatting                                          reports
+`results` 2/5 Before/after
+comparison
 
-  `guard`/`statusline`           Excluded/conditional Only non-Claude
-                                                      equivalent if
-                                                      meaningful
-  -------------------------------------------------------------------------
+`apply` and `undo` 4/5 Supported rule
+actions
+
+`verify` 5/5 Verification/replay
+
+`card` and output 2/5 Compact readable
+formatting reports
+
+`guard`/`statusline` Excluded/conditional Only non-Claude
+equivalent if
+meaningful
+-------------------------------------------------------------------------
 
 ### Implementation steps
 
@@ -438,33 +469,35 @@ reusable features without duplicating the engine.
 **Exit criterion:** A user can build the project and get a useful report
 from actual local history.
 
-------------------------------------------------------------------------
+---
 
 ## Phase 7 --- Interactive local dashboard
 
 **Difficulty:** 4/5\
 **Goal:** Add a dashboard as a second interface to the same engine.
 
-  Feature                          Difficulty Deliverable
-  ------------------------------ ------------ -----------------------------------
-  Local dashboard server                  3/5 Serve UI on localhost
-  Overview page                           2/5 Cost, tokens, sessions, trends
-  Usage charts                            2/5 By model and time
-  Session explorer                        3/5 Search, filter, inspect
-  Cost breakdown                          2/5 Provider, model, token category
-  Optimization recommendations            3/5 Evidence and impact
-  Rule action controls                    4/5 Supported apply/undo/verify
-  Live refresh                            3/5 Update session data
-  Local security                          3/5 Bind locally and validate actions
+Feature Difficulty Deliverable
+
+---
+
+Local dashboard server 3/5 Serve UI on localhost
+Overview page 2/5 Cost, tokens, sessions, trends
+Usage charts 2/5 By model and time
+Session explorer 3/5 Search, filter, inspect
+Cost breakdown 2/5 Provider, model, token category
+Optimization recommendations 3/5 Evidence and impact
+Rule action controls 4/5 Supported apply/undo/verify
+Live refresh 3/5 Update session data
+Local security 3/5 Bind locally and validate actions
 
 ### Implementation steps
 
--   Use a lightweight UI (for example React + Vite) with the shared core
-    contracts.
--   Build Overview, Sessions and Optimization pages.
--   Expose only a restricted set of local read/action endpoints.
--   Bind to localhost, validate action inputs, avoid arbitrary
-    filesystem/shell access, and minimize raw prompt exposure.
+- Use a lightweight UI (for example React + Vite) with the shared core
+  contracts.
+- Build Overview, Sessions and Optimization pages.
+- Expose only a restricted set of local read/action endpoints.
+- Bind to localhost, validate action inputs, avoid arbitrary
+  filesystem/shell access, and minimize raw prompt exposure.
 
 ### Phase 7 summary
 
@@ -474,7 +507,7 @@ actions go through the same rule engine.
 **Exit criterion:** The dashboard shows real local data and its totals
 agree with the CLI.
 
-------------------------------------------------------------------------
+---
 
 ## Phase 8 --- Integration, regression tests and release readiness
 
@@ -482,26 +515,28 @@ agree with the CLI.
 **Goal:** Make the rebuilt tool reliable to demonstrate and continue
 developing.
 
-  Feature                             Difficulty Deliverable
-  --------------------------------- ------------ -------------------------------
-  V1/V2 regression fixtures                  3/5 Both OpenCode schemas
-  Cross-package integration tests            4/5 Reader → engine → UI
-  CLI end-to-end tests                       3/5 Commands and exit codes
-  Dashboard integration tests                3/5 Loading, filters, errors
-  Pricing/calculation tests                  3/5 Known totals
-  Rule apply/undo tests                      4/5 Safe state restoration
-  Live-monitor tests                         4/5 New records and deduplication
-  Build/runtime checks                       2/5 Bun/npm workflows
-  Documentation                              2/5 Setup, commands, limitations
+Feature Difficulty Deliverable
+
+---
+
+V1/V2 regression fixtures 3/5 Both OpenCode schemas
+Cross-package integration tests 4/5 Reader → engine → UI
+CLI end-to-end tests 3/5 Commands and exit codes
+Dashboard integration tests 3/5 Loading, filters, errors
+Pricing/calculation tests 3/5 Known totals
+Rule apply/undo tests 4/5 Safe state restoration
+Live-monitor tests 4/5 New records and deduplication
+Build/runtime checks 2/5 Bun/npm workflows
+Documentation 2/5 Setup, commands, limitations
 
 ### Implementation steps
 
--   Test clean installs and builds, not only your existing working
-    directory.
--   Verify that ingestion never writes to source history.
--   Check that CLI and dashboard totals match.
--   Document unsupported providers, actions and any remaining feature
-    gaps.
+- Test clean installs and builds, not only your existing working
+  directory.
+- Verify that ingestion never writes to source history.
+- Check that CLI and dashboard totals match.
+- Document unsupported providers, actions and any remaining feature
+  gaps.
 
 ### Phase 8 summary
 
@@ -511,7 +546,7 @@ integration coverage across readers, core, CLI and dashboard.
 **Exit criterion:** The app can be demonstrated from a clean checkout
 without undocumented machine-specific state.
 
-------------------------------------------------------------------------
+---
 
 ## 9. Difficulty overview
 
@@ -519,136 +554,145 @@ Relative engineering complexity, not estimated hours. Highest-risk work
 is data parsing, accounting accuracy, safe actions, and incremental
 monitoring---not the dashboard charts.
 
-  -------------------------------------------------------------------------
-  Feature area                            Difficulty Main risk
-  --------------------- ---------------------------- ----------------------
-  Workspace/build                                2/5 Script compatibility
-                                                     across npm and Bun
+---
 
-  Data readers                                   4/5 Schema variation,
-                                                     missing fields, mixed
-                                                     V1/V2 history
+Feature area Difficulty Main risk
 
-  Analysis/pricing                               4/5 Cache pricing and
-                                                     missing usage metadata
+---
 
-  Rules/apply/undo                               4/5 Integration-specific
-                                                     behavior and safe
-                                                     rollback
+Workspace/build 2/5 Script compatibility
+across npm and Bun
 
-  Live                                           4/5 Concurrency and
-  monitoring/ledger                                  duplicate prevention
+Data readers 4/5 Schema variation,
+missing fields, mixed
+V1/V2 history
 
-  CLI                                            3/5 Exact command parity
+Analysis/pricing 4/5 Cache pricing and
+missing usage metadata
 
-  Dashboard                                      4/5 Local security and
-                                                     consistent shared data
+Rules/apply/undo 4/5 Integration-specific
+behavior and safe
+rollback
 
-  Replay/verification                            5/5 Cost, credentials and
-                                                     nondeterministic
-                                                     outcomes
-  -------------------------------------------------------------------------
+Live 4/5 Concurrency and
+monitoring/ledger duplicate prevention
 
-------------------------------------------------------------------------
+CLI 3/5 Exact command parity
+
+Dashboard 4/5 Local security and
+consistent shared data
+
+Replay/verification 5/5 Cost, credentials and
+nondeterministic
+outcomes
+-------------------------------------------------------------------------
+
+---
 
 ## 10. Suggested 24-hour execution schedule
 
-  -----------------------------------------------------------------------
-  Time                    Focus                   Deliverable
-  ----------------------- ----------------------- -----------------------
-  Hours 0--2              Reconnaissance and      Map modules; create
-                          foundation              workspace; establish
-                                                  build/tests.
+---
 
-  Hours 2--6              Ingestion and OpenCode  Normalize V1/V2 and
-                          V2                      validate against real
-                                                  local data.
+Time Focus Deliverable
 
-  Hours 6--10             Analysis and pricing    Token/cost totals,
-                                                  sessions, caching and
-                                                  repeated-work findings.
+---
 
-  Hours 10--13            CLI and reports         Get the core commands
-                                                  working end-to-end.
+Hours 0--2 Reconnaissance and Map modules; create
+foundation workspace; establish
+build/tests.
 
-  Hours 13--17            Dashboard MVP           Overview, session list,
-                                                  cost charts,
-                                                  recommendations.
+Hours 2--6 Ingestion and OpenCode Normalize V1/V2 and
+V2 validate against real
+local data.
 
-  Hours 17--20            Rules and live updates  Supported actions, undo
-                                                  and incremental
-                                                  refresh.
+Hours 6--10 Analysis and pricing Token/cost totals,
+sessions, caching and
+repeated-work findings.
 
-  Hours 20--24            Integration and demo    Regression tests,
-                                                  fixes, docs and a
-                                                  reliable demo.
-  -----------------------------------------------------------------------
+Hours 10--13 CLI and reports Get the core commands
+working end-to-end.
+
+Hours 13--17 Dashboard MVP Overview, session list,
+cost charts,
+recommendations.
+
+Hours 17--20 Rules and live updates Supported actions, undo
+and incremental
+refresh.
+
+Hours 20--24 Integration and demo Regression tests,
+fixes, docs and a
+reliable demo.
+-----------------------------------------------------------------------
 
 This is aggressive, not a guarantee. If time slips, prioritize a working
 reader, accurate analysis, CLI, and dashboard overview. Move replay
 verification, advanced rule actions, and full parity across every
 provider to follow-up work. Do not fake unfinished features in the demo.
 
-------------------------------------------------------------------------
+---
 
 ## 11. Final acceptance checklist
 
--   [ ] Clean checkout builds successfully.
--   [ ] OpenCode 1.x history is supported.
--   [ ] OpenCode 2.x history is supported.
--   [ ] Token counts and costs pass fixture tests.
--   [ ] Repeated-work findings are explainable.
--   [ ] Supported rules can be applied and undone safely.
--   [ ] Ingestion never modifies local source history.
--   [ ] CLI and dashboard agree on session totals.
--   [ ] Live refresh avoids duplicate records.
--   [ ] Claude-specific mods are excluded.
--   [ ] Remaining unsupported features are documented.
+- [ ] Clean checkout builds successfully.
+- [ ] OpenCode 1.x history is supported.
+- [ ] OpenCode 2.x history is supported.
+- [ ] Token counts and costs pass fixture tests.
+- [ ] Repeated-work findings are explainable.
+- [ ] Supported rules can be applied and undone safely.
+- [ ] Ingestion never modifies local source history.
+- [ ] CLI and dashboard agree on session totals.
+- [ ] Live refresh avoids duplicate records.
+- [ ] Claude-specific mods are excluded.
+- [ ] Remaining unsupported features are documented.
 
-------------------------------------------------------------------------
+---
 
 ## 12. Overall summary --- planned project contents
 
-  -----------------------------------------------------------------------
-  Repository capability               Planned outcome
-  ----------------------------------- -----------------------------------
-  `packages/core`                     Rebuilt analysis engine, pricing,
-                                      ingestion contracts, rules and
-                                      reports.
+---
 
-  `packages/local`                    Local readers, ledger, live
-                                      monitoring and replay/verification
-                                      support.
+Repository capability Planned outcome
 
-  OpenCode reader                     V1 retained; V2 added; mixed
-                                      schemas handled without duplicate
-                                      usage.
+---
 
-  Other source readers                Reimplemented according to the
-                                      original source inventory.
+`packages/core` Rebuilt analysis engine, pricing,
+ingestion contracts, rules and
+reports.
 
-  Analytics                           Token/cost usage, cache analysis,
-                                      session summaries and waste
-                                      estimates.
+`packages/local` Local readers, ledger, live
+monitoring and replay/verification
+support.
 
-  Optimization engine                 Rule evaluation, recommendations
-                                      and supported apply/undo.
+OpenCode reader V1 retained; V2 added; mixed
+schemas handled without duplicate
+usage.
 
-  Results/verification                Before/after comparisons and replay
-                                      where feasible.
+Other source readers Reimplemented according to the
+original source inventory.
 
-  `apps/cli`                          Rebuilt CLI command interface.
+Analytics Token/cost usage, cache analysis,
+session summaries and waste
+estimates.
 
-  Claude-specific mods                Excluded, including Claude-specific
-                                      hooks and statusline integrations.
+Optimization engine Rule evaluation, recommendations
+and supported apply/undo.
 
-  Dashboard                           New interactive local dashboard
-                                      using the same core engine.
+Results/verification Before/after comparisons and replay
+where feasible.
 
-  Local-first behavior                Preserved, with any optional
-                                      network-dependent verification
-                                      documented.
-  -----------------------------------------------------------------------
+`apps/cli` Rebuilt CLI command interface.
+
+Claude-specific mods Excluded, including Claude-specific
+hooks and statusline integrations.
+
+Dashboard New interactive local dashboard
+using the same core engine.
+
+Local-first behavior Preserved, with any optional
+network-dependent verification
+documented.
+-----------------------------------------------------------------------
 
 **Definition of done:** "Recreated" means a feature is implemented and
 tested, not merely represented by a command or screen. Claude-dependent

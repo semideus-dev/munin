@@ -1,0 +1,799 @@
+{
+  "formatVersion": 1,
+  "method": "Calls are accounted per message; session aggregates are never billed. Each call's cost basis is the provider-reported charge when the source records one, otherwise the list-price estimate on the 2026-10-22 catalogue (pricing version 1); a call with neither reports tokens only, never a rounded $0. Day buckets use the UTC time zone. Bucket, cache and finding dollar figures are estimates; a finding's dollars are modelled waste, not observed charges.",
+  "pricingAsOf": "2026-10-22",
+  "pricingVersion": 1,
+  "timeZone": "UTC",
+  "window": {
+    "start": "2025-01-19T00:01:00.000Z",
+    "end": "2025-01-20T00:01:00.000Z",
+    "days": 1
+  },
+  "totals": {
+    "calls": 8,
+    "sessions": 4,
+    "turns": 1,
+    "subagentSessions": 1,
+    "inputTokens": 5510,
+    "outputTokens": 602,
+    "thinkingTokens": 90,
+    "cacheReadTokens": 0,
+    "cacheWriteTokens": 10,
+    "totalTokens": 6122,
+    "headlineUsd": 0.1142255,
+    "observedUsd": 0.1133,
+    "estimatedUsd": 0.0009254999999999999,
+    "unpricedCalls": 2,
+    "unpricedModels": [
+      "mystery-model"
+    ],
+    "observedCoverage": 0.125,
+    "cacheHitRate": 0,
+    "thinkingShare": 0.14950166112956811,
+    "avgTokensPerCall": 765.25,
+    "avgCostPerCall": 0.0142781875
+  },
+  "byModel": [
+    {
+      "key": "gateway/mystery-model",
+      "calls": 3,
+      "inputTokens": 1310,
+      "outputTokens": 112,
+      "thinkingTokens": 10,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "totalTokens": 1422,
+      "observedUsd": 0.1133,
+      "estimatedUsd": 0,
+      "headlineUsd": 0.1133,
+      "spendShare": 0.9918976060511883,
+      "cacheHitRate": 0,
+      "unpriced": true,
+      "models": [
+        "mystery-model"
+      ],
+      "providers": [
+        "gateway"
+      ]
+    },
+    {
+      "key": "ollama-cloud/gpt-oss:120b",
+      "calls": 5,
+      "inputTokens": 4200,
+      "outputTokens": 490,
+      "thinkingTokens": 80,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 10,
+      "totalTokens": 4700,
+      "observedUsd": 0,
+      "estimatedUsd": 0.0009254999999999999,
+      "headlineUsd": 0.0009254999999999999,
+      "spendShare": 0.00810239394881178,
+      "cacheHitRate": 0,
+      "unpriced": false,
+      "models": [
+        "gpt-oss:120b"
+      ],
+      "providers": [
+        "ollama-cloud"
+      ]
+    }
+  ],
+  "byProvider": [
+    {
+      "key": "gateway",
+      "calls": 3,
+      "inputTokens": 1310,
+      "outputTokens": 112,
+      "thinkingTokens": 10,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "totalTokens": 1422,
+      "observedUsd": 0.1133,
+      "estimatedUsd": 0,
+      "headlineUsd": 0.1133,
+      "spendShare": 0.9918976060511883,
+      "cacheHitRate": 0,
+      "unpriced": true,
+      "models": [
+        "mystery-model"
+      ],
+      "providers": [
+        "gateway"
+      ]
+    },
+    {
+      "key": "ollama-cloud",
+      "calls": 5,
+      "inputTokens": 4200,
+      "outputTokens": 490,
+      "thinkingTokens": 80,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 10,
+      "totalTokens": 4700,
+      "observedUsd": 0,
+      "estimatedUsd": 0.0009254999999999999,
+      "headlineUsd": 0.0009254999999999999,
+      "spendShare": 0.00810239394881178,
+      "cacheHitRate": 0,
+      "unpriced": false,
+      "models": [
+        "gpt-oss:120b"
+      ],
+      "providers": [
+        "ollama-cloud"
+      ]
+    }
+  ],
+  "byProject": [
+    {
+      "key": "p1",
+      "label": "munin",
+      "calls": 8,
+      "inputTokens": 5510,
+      "outputTokens": 602,
+      "thinkingTokens": 90,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 10,
+      "totalTokens": 6122,
+      "observedUsd": 0.1133,
+      "estimatedUsd": 0.0009254999999999999,
+      "headlineUsd": 0.1142255,
+      "spendShare": 1,
+      "cacheHitRate": 0,
+      "unpriced": true,
+      "models": [
+        "gpt-oss:120b",
+        "mystery-model"
+      ],
+      "providers": [
+        "gateway",
+        "ollama-cloud"
+      ]
+    }
+  ],
+  "byDay": [
+    {
+      "key": "2025-01-19",
+      "calls": 7,
+      "inputTokens": 5010,
+      "outputTokens": 532,
+      "thinkingTokens": 80,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 10,
+      "totalTokens": 5552,
+      "observedUsd": 0.1133,
+      "estimatedUsd": 0.0009254999999999999,
+      "headlineUsd": 0.1142255,
+      "spendShare": 1,
+      "cacheHitRate": 0,
+      "unpriced": true,
+      "models": [
+        "gpt-oss:120b",
+        "mystery-model"
+      ],
+      "providers": [
+        "gateway",
+        "ollama-cloud"
+      ]
+    },
+    {
+      "key": "2025-01-20",
+      "calls": 1,
+      "inputTokens": 500,
+      "outputTokens": 70,
+      "thinkingTokens": 10,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "totalTokens": 570,
+      "observedUsd": 0,
+      "estimatedUsd": 0,
+      "headlineUsd": 0,
+      "spendShare": 0,
+      "cacheHitRate": 0,
+      "unpriced": true,
+      "models": [
+        "mystery-model"
+      ],
+      "providers": [
+        "gateway"
+      ]
+    }
+  ],
+  "bySession": [
+    {
+      "key": "s2",
+      "calls": 2,
+      "inputTokens": 810,
+      "outputTokens": 42,
+      "thinkingTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "totalTokens": 852,
+      "observedUsd": 0.1133,
+      "estimatedUsd": 0,
+      "headlineUsd": 0.1133,
+      "spendShare": 0.9918976060511883,
+      "cacheHitRate": 0,
+      "unpriced": true,
+      "models": [
+        "mystery-model"
+      ],
+      "providers": [
+        "gateway"
+      ]
+    },
+    {
+      "key": "s1",
+      "calls": 4,
+      "inputTokens": 4000,
+      "outputTokens": 480,
+      "thinkingTokens": 80,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 10,
+      "totalTokens": 4490,
+      "observedUsd": 0,
+      "estimatedUsd": 0.0008894999999999999,
+      "headlineUsd": 0.0008894999999999999,
+      "spendShare": 0.007787227895697545,
+      "cacheHitRate": 0,
+      "unpriced": false,
+      "models": [
+        "gpt-oss:120b"
+      ],
+      "providers": [
+        "ollama-cloud"
+      ]
+    },
+    {
+      "key": "s4",
+      "calls": 1,
+      "inputTokens": 200,
+      "outputTokens": 10,
+      "thinkingTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "totalTokens": 210,
+      "observedUsd": 0,
+      "estimatedUsd": 0.000036,
+      "headlineUsd": 0.000036,
+      "spendShare": 0.0003151660531142346,
+      "cacheHitRate": 0,
+      "unpriced": false,
+      "models": [
+        "gpt-oss:120b"
+      ],
+      "providers": [
+        "ollama-cloud"
+      ]
+    },
+    {
+      "key": "s3",
+      "calls": 1,
+      "inputTokens": 500,
+      "outputTokens": 70,
+      "thinkingTokens": 10,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "totalTokens": 570,
+      "observedUsd": 0,
+      "estimatedUsd": 0,
+      "headlineUsd": 0,
+      "spendShare": 0,
+      "cacheHitRate": 0,
+      "unpriced": true,
+      "models": [
+        "mystery-model"
+      ],
+      "providers": [
+        "gateway"
+      ]
+    }
+  ],
+  "byAgent": [
+    {
+      "key": "unknown",
+      "calls": 3,
+      "inputTokens": 1310,
+      "outputTokens": 112,
+      "thinkingTokens": 10,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "totalTokens": 1422,
+      "observedUsd": 0.1133,
+      "estimatedUsd": 0,
+      "headlineUsd": 0.1133,
+      "spendShare": 0.9918976060511883,
+      "cacheHitRate": 0,
+      "unpriced": true,
+      "models": [
+        "mystery-model"
+      ],
+      "providers": [
+        "gateway"
+      ]
+    },
+    {
+      "key": "build",
+      "calls": 4,
+      "inputTokens": 4000,
+      "outputTokens": 480,
+      "thinkingTokens": 80,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 10,
+      "totalTokens": 4490,
+      "observedUsd": 0,
+      "estimatedUsd": 0.0008894999999999999,
+      "headlineUsd": 0.0008894999999999999,
+      "spendShare": 0.007787227895697545,
+      "cacheHitRate": 0,
+      "unpriced": false,
+      "models": [
+        "gpt-oss:120b"
+      ],
+      "providers": [
+        "ollama-cloud"
+      ]
+    },
+    {
+      "key": "explore",
+      "calls": 1,
+      "inputTokens": 200,
+      "outputTokens": 10,
+      "thinkingTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "totalTokens": 210,
+      "observedUsd": 0,
+      "estimatedUsd": 0.000036,
+      "headlineUsd": 0.000036,
+      "spendShare": 0.0003151660531142346,
+      "cacheHitRate": 0,
+      "unpriced": false,
+      "models": [
+        "gpt-oss:120b"
+      ],
+      "providers": [
+        "ollama-cloud"
+      ]
+    }
+  ],
+  "cache": {
+    "inputTokens": 5510,
+    "readTokens": 0,
+    "writeTokens": 10,
+    "write5mTokens": 10,
+    "write1hTokens": 0,
+    "hitRate": 0,
+    "estimatedReadUsd": 0,
+    "estimatedWriteUsd": 0.0000015,
+    "shareOfEstimate": 0.001620745542949757,
+    "writesRecorded": true,
+    "byModel": [
+      {
+        "key": "ollama-cloud/gpt-oss:120b",
+        "calls": 5,
+        "inputTokens": 4200,
+        "readTokens": 0,
+        "writeTokens": 10,
+        "write5mTokens": 10,
+        "write1hTokens": 0,
+        "hitRate": 0,
+        "estimatedReadUsd": 0,
+        "estimatedWriteUsd": 0.0000015,
+        "hitRateChange": 0
+      },
+      {
+        "key": "gateway/mystery-model",
+        "calls": 3,
+        "inputTokens": 1310,
+        "readTokens": 0,
+        "writeTokens": 0,
+        "write5mTokens": 0,
+        "write1hTokens": 0,
+        "hitRate": 0,
+        "estimatedReadUsd": 0,
+        "estimatedWriteUsd": 0,
+        "hitRateChange": 0
+      }
+    ],
+    "byProvider": [
+      {
+        "key": "ollama-cloud",
+        "calls": 5,
+        "inputTokens": 4200,
+        "readTokens": 0,
+        "writeTokens": 10,
+        "write5mTokens": 10,
+        "write1hTokens": 0,
+        "hitRate": 0,
+        "estimatedReadUsd": 0,
+        "estimatedWriteUsd": 0.0000015,
+        "hitRateChange": 0
+      },
+      {
+        "key": "gateway",
+        "calls": 3,
+        "inputTokens": 1310,
+        "readTokens": 0,
+        "writeTokens": 0,
+        "write5mTokens": 0,
+        "write1hTokens": 0,
+        "hitRate": 0,
+        "estimatedReadUsd": 0,
+        "estimatedWriteUsd": 0,
+        "hitRateChange": 0
+      }
+    ],
+    "bySession": [
+      {
+        "key": "s1",
+        "calls": 4,
+        "inputTokens": 4000,
+        "readTokens": 0,
+        "writeTokens": 10,
+        "write5mTokens": 10,
+        "write1hTokens": 0,
+        "hitRate": 0,
+        "estimatedReadUsd": 0,
+        "estimatedWriteUsd": 0.0000015,
+        "hitRateChange": 0
+      },
+      {
+        "key": "s2",
+        "calls": 2,
+        "inputTokens": 810,
+        "readTokens": 0,
+        "writeTokens": 0,
+        "write5mTokens": 0,
+        "write1hTokens": 0,
+        "hitRate": 0,
+        "estimatedReadUsd": 0,
+        "estimatedWriteUsd": 0,
+        "hitRateChange": 0
+      },
+      {
+        "key": "s3",
+        "calls": 1,
+        "inputTokens": 500,
+        "readTokens": 0,
+        "writeTokens": 0,
+        "write5mTokens": 0,
+        "write1hTokens": 0,
+        "hitRate": 0,
+        "estimatedReadUsd": 0,
+        "estimatedWriteUsd": 0,
+        "hitRateChange": null
+      },
+      {
+        "key": "s4",
+        "calls": 1,
+        "inputTokens": 200,
+        "readTokens": 0,
+        "writeTokens": 0,
+        "write5mTokens": 0,
+        "write1hTokens": 0,
+        "hitRate": 0,
+        "estimatedReadUsd": 0,
+        "estimatedWriteUsd": 0,
+        "hitRateChange": null
+      }
+    ],
+    "byDay": [
+      {
+        "key": "2025-01-19",
+        "calls": 7,
+        "inputTokens": 5010,
+        "readTokens": 0,
+        "writeTokens": 10,
+        "write5mTokens": 10,
+        "write1hTokens": 0,
+        "hitRate": 0,
+        "estimatedReadUsd": 0,
+        "estimatedWriteUsd": 0.0000015,
+        "hitRateChange": 0
+      },
+      {
+        "key": "2025-01-20",
+        "calls": 1,
+        "inputTokens": 500,
+        "readTokens": 0,
+        "writeTokens": 0,
+        "write5mTokens": 0,
+        "write1hTokens": 0,
+        "hitRate": 0,
+        "estimatedReadUsd": 0,
+        "estimatedWriteUsd": 0,
+        "hitRateChange": null
+      }
+    ],
+    "instructionContext": {
+      "sessions": 2,
+      "totalChars": 800,
+      "distinctPrefixHashes": 1,
+      "sharedPrefixes": []
+    }
+  },
+  "sessions": [
+    {
+      "id": "s2",
+      "projectId": "p1",
+      "project": "munin",
+      "isSubagent": false,
+      "agents": [
+        "unknown"
+      ],
+      "models": [
+        "gateway/mystery-model"
+      ],
+      "schema": "v2",
+      "firstTs": "2025-01-19T00:11:00.000Z",
+      "lastTs": "2025-01-19T00:12:00.000Z",
+      "calls": 2,
+      "turns": 0,
+      "inputTokens": 810,
+      "outputTokens": 42,
+      "thinkingTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "totalTokens": 852,
+      "observedUsd": 0.1133,
+      "estimatedUsd": 0,
+      "headlineUsd": 0.1133,
+      "cacheHitRate": 0,
+      "unpriced": true,
+      "compactions": 1,
+      "observedCoverage": 0.5
+    },
+    {
+      "id": "s1",
+      "projectId": "p1",
+      "project": "munin",
+      "isSubagent": false,
+      "agents": [
+        "build"
+      ],
+      "models": [
+        "ollama-cloud/gpt-oss:120b"
+      ],
+      "schema": "v2",
+      "firstTs": "2025-01-19T00:01:00.000Z",
+      "lastTs": "2025-01-19T00:04:00.000Z",
+      "calls": 4,
+      "turns": 0,
+      "inputTokens": 4000,
+      "outputTokens": 480,
+      "thinkingTokens": 80,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 10,
+      "totalTokens": 4490,
+      "observedUsd": 0,
+      "estimatedUsd": 0.0008894999999999999,
+      "headlineUsd": 0.0008894999999999999,
+      "cacheHitRate": 0,
+      "unpriced": false,
+      "compactions": 0,
+      "observedCoverage": 0
+    },
+    {
+      "id": "s4",
+      "projectId": "p1",
+      "project": "munin",
+      "parentSessionId": "s1",
+      "isSubagent": true,
+      "agents": [
+        "explore"
+      ],
+      "models": [
+        "ollama-cloud/gpt-oss:120b"
+      ],
+      "schema": "v2",
+      "firstTs": "2025-01-19T00:17:00.000Z",
+      "lastTs": "2025-01-19T00:17:00.000Z",
+      "calls": 1,
+      "turns": 0,
+      "inputTokens": 200,
+      "outputTokens": 10,
+      "thinkingTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "totalTokens": 210,
+      "observedUsd": 0,
+      "estimatedUsd": 0.000036,
+      "headlineUsd": 0.000036,
+      "cacheHitRate": 0,
+      "unpriced": false,
+      "compactions": 0,
+      "observedCoverage": 0
+    },
+    {
+      "id": "s3",
+      "projectId": "p1",
+      "project": "munin",
+      "isSubagent": false,
+      "agents": [
+        "unknown"
+      ],
+      "models": [
+        "gateway/mystery-model"
+      ],
+      "schema": "v2",
+      "firstTs": "2025-01-20T00:01:00.000Z",
+      "lastTs": "2025-01-20T00:01:00.000Z",
+      "calls": 1,
+      "turns": 1,
+      "inputTokens": 500,
+      "outputTokens": 70,
+      "thinkingTokens": 10,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "totalTokens": 570,
+      "observedUsd": 0,
+      "estimatedUsd": 0,
+      "headlineUsd": 0,
+      "cacheHitRate": 0,
+      "unpriced": true,
+      "compactions": 0,
+      "observedCoverage": 0
+    }
+  ],
+  "findings": [
+    {
+      "rule": "repeat-tool-calls",
+      "category": "context-bloat",
+      "title": "2 redundant re-reads of content already in context",
+      "detail": "The same file or search was fetched again in the same context, with nothing edited in between. Re-reads after an edit, after a compaction, or by a subagent are not counted. Each duplicate re-enters the cacheable prefix and is re-read by every later call, so the cost compounds with context length.",
+      "why": "A repeat is written into the conversation again and re-read by every later call, so it keeps costing until the conversation ends or is compacted.",
+      "tier": "fix",
+      "savings": {
+        "currentUsd": 0.00044399999999999995,
+        "windowUsd": 0.000025679999999999998,
+        "monthlyUsd": 0.0007704,
+        "annualUsd": 0.0093732,
+        "windowDays": 1,
+        "projectionDays": 1,
+        "tokensWasted": 160,
+        "unpriced": false,
+        "pricingAsOf": "2026-10-22",
+        "confidence": "low",
+        "confidenceBasis": "low because 2 duplicate(s) is too thin to average",
+        "assumptions": [
+          "A duplicate read returns the same content the context already had: no edit to that file, and no change at all for a search, came in between.",
+          "The duplicate stays in the prefix until the context ends or a compaction clears it.",
+          "Removing it changes nothing else about the call."
+        ],
+        "calculation": "For each duplicate: result tokens x (cache-write rate + remaining calls in context x cache-read rate) / 1,000,000, on the 2026-01-01 rate card, at the duplicate's own model and time.",
+        "evidence": {
+          "kind": "measured",
+          "basis": "Duplicate results counted directly and priced at the card in force"
+        }
+      },
+      "affected": {
+        "calls": 2,
+        "models": [
+          "gpt-oss:120b"
+        ],
+        "projects": [
+          "munin"
+        ],
+        "agents": [
+          "build"
+        ],
+        "share": 0.0038870479884088927,
+        "sampleEventIds": [
+          "m2",
+          "m4"
+        ]
+      },
+      "impact": "none",
+      "severity": "low",
+      "risk": "safe",
+      "verification": "not-required",
+      "advisory": false,
+      "observations": [
+        "Read:/b.ts#0:0: 1 duplicate, 100 tok, $0.000015",
+        "Read:/a.ts#0:0: 1 duplicate, 60 tok, $0.000011"
+      ],
+      "fix": "Keep a per-session record of what has already been read and serve repeats from it. In agent harnesses, prefer a targeted re-read (offset/limit) over refetching a whole file.",
+      "claimByEvent": [
+        {
+          "eventId": "m2",
+          "usd": 0.000012839999999999999
+        },
+        {
+          "eventId": "m4",
+          "usd": 0.000012839999999999999
+        }
+      ]
+    }
+  ],
+  "savings": {
+    "windowDays": 1,
+    "projectionDays": 1,
+    "fix": {
+      "tiers": [
+        "fix"
+      ],
+      "claimedCalls": 2,
+      "windowUsd": 0.000025679999999999998,
+      "monthlyUsd": 0.0007704,
+      "annualUsd": 0.0093732
+    },
+    "try": {
+      "tiers": [
+        "try"
+      ],
+      "claimedCalls": 0,
+      "windowUsd": 0,
+      "monthlyUsd": 0,
+      "annualUsd": 0
+    },
+    "test": {
+      "tiers": [
+        "test"
+      ],
+      "claimedCalls": 0,
+      "windowUsd": 0,
+      "monthlyUsd": 0,
+      "annualUsd": 0
+    },
+    "all": {
+      "tiers": [
+        "fix",
+        "try",
+        "test"
+      ],
+      "claimedCalls": 2,
+      "windowUsd": 0.000025679999999999998,
+      "monthlyUsd": 0.0007704,
+      "annualUsd": 0.0093732
+    },
+    "tokensWasted": 160,
+    "pricedTokensWasted": 160,
+    "unpricedTokensWasted": 0,
+    "unpricedFindings": 0
+  },
+  "dataHealth": {
+    "schema": "v2",
+    "sources": [
+      "assets/sessions",
+      "opencode.db"
+    ],
+    "sessions": 4,
+    "subagentSessions": 1,
+    "messages": 10,
+    "modelCalls": 9,
+    "failedCalls": 1,
+    "compactions": 1,
+    "warnings": [
+      {
+        "code": "price.unpriced-model",
+        "message": "No price card for mystery-model: 3 call(s), observed spend $0.1133",
+        "count": 3
+      }
+    ],
+    "unpricedModels": [
+      {
+        "model": "gateway/mystery-model",
+        "calls": 3,
+        "unpricedCalls": 2,
+        "observedUsd": 0.1133
+      }
+    ],
+    "observedCoverage": 0.125,
+    "reconciliation": {
+      "checkedSessions": 0,
+      "mismatchSessions": 0,
+      "largestDelta": 0,
+      "mismatches": []
+    },
+    "projectLabelCollisions": [],
+    "detectorErrors": [],
+    "instruction": {
+      "sessions": 4,
+      "sessionsWithInstructions": 2,
+      "calls": 8,
+      "callsWithPrefix": 5
+    }
+  }
+}

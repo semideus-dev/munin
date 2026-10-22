@@ -18,6 +18,7 @@
     "pretest": "npm run build",
     "test": "node --test",
     "reader": "npm run build && node scripts/read-local.mjs",
+    "analyze": "npm run build && node scripts/analyze-local.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

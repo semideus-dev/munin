@@ -1,11 +1,21 @@
 # Phase 3 plan: analysis engine, pricing and reporting
 
-Status: planned
+Status: complete (closed 2026-10-22)
 Owner: team
 Scope: turn the Phase 2 source model into priced events, deterministic
 aggregates, cache analysis, two repeated-work detectors, the finding/savings
 contract, and one structured report. No CLI product commands, ledger, live
 monitoring, dashboard, apply/undo, or replay.
+
+Closure note: Steps 0 through 9 are complete. The engine prices every call
+(observed headline, dated list-price estimate, token-only unpriced),
+aggregates deterministically, analyzes cache reuse, runs two repeated-work
+detectors under a full explanation contract, and emits a byte-identical
+structured report with data health. The harness
+(`npm run analyze -- --<mode>`) reaches every report number without code.
+Exit checklist results are marked below against the verification runs of
+2026-10-22 (snapshot `munin-phase3-exit.db`; counts drift with the live
+database, the invariants do not).
 Estimated effort: 10 to 12 hours
 
 ## Goal
@@ -180,19 +190,19 @@ Dataset (Phase 2)
 
 ## Deliverables
 
-| Deliverable                        | Where                                              | Proof                            |
-| ---------------------------------- | -------------------------------------------------- | -------------------------------- |
-| Dated pricing registry and aliases | `core/pricing/*`                                   | `pricing.test.mjs`               |
-| Canonical token cost math          | `core/pricing/cost.ts`                             | `pricing.test.mjs`               |
-| Priced events and attempts         | `core/analyze/build.ts`                            | `build-events.test.mjs`          |
-| Totals and breakdowns              | `core/analyze/summary.ts`, `sessions.ts`           | `summary.test.mjs`               |
-| Cache analysis                     | `core/analyze/cache.ts`                            | `cache.test.mjs`                 |
-| Finding and savings contract       | `core/domain/finding.ts`, `core/analyze/findings.ts` | `findings.test.mjs`             |
-| Repeated tool-call detector        | `core/analyze/findings/repeat-tool-calls.ts`       | `repeat-tool-calls.test.mjs`     |
-| Repeated-context detector          | `core/analyze/findings/repeated-context.ts`        | `repeated-context.test.mjs`      |
-| Structured report                  | `core/report/report.ts`                            | `report.test.mjs`                |
-| Development harness                | `scripts/analyze-local.mjs`                        | Manual audit below               |
-| Documentation                      | `docs/analysis.md`, `docs/pricing.md`, `docs/reports.md` | Review                     |
+| Deliverable                        | Where                                                    | Proof                        |
+| ---------------------------------- | -------------------------------------------------------- | ---------------------------- |
+| Dated pricing registry and aliases | `core/pricing/*`                                         | `pricing.test.mjs`           |
+| Canonical token cost math          | `core/pricing/cost.ts`                                   | `pricing.test.mjs`           |
+| Priced events and attempts         | `core/analyze/build.ts`                                  | `build-events.test.mjs`      |
+| Totals and breakdowns              | `core/analyze/summary.ts`, `sessions.ts`                 | `summary.test.mjs`           |
+| Cache analysis                     | `core/analyze/cache.ts`                                  | `cache.test.mjs`             |
+| Finding and savings contract       | `core/domain/finding.ts`, `core/analyze/findings.ts`     | `findings.test.mjs`          |
+| Repeated tool-call detector        | `core/analyze/findings/repeat-tool-calls.ts`             | `repeat-tool-calls.test.mjs` |
+| Repeated-context detector          | `core/analyze/findings/repeated-context.ts`              | `repeated-context.test.mjs`  |
+| Structured report                  | `core/report/report.ts`                                  | `report.test.mjs`            |
+| Development harness                | `scripts/analyze-local.mjs`                              | Manual audit below           |
+| Documentation                      | `docs/analysis.md`, `docs/pricing.md`, `docs/reports.md` | Review                       |
 
 ## Steps
 
@@ -710,20 +720,20 @@ Files:
 
 Modes:
 
-| Flag                | Output                                                     |
-| ------------------- | ---------------------------------------------------------- |
-| `--totals`          | calls, sessions, tokens, observed/estimated/headline costs |
-| `--models`          | per model: calls, tokens, costs, unpriced, share           |
-| `--sessions`        | per session: calls, tokens, cost, cache, subagent flag     |
-| `--cache`           | cache read/write, hit rate, prefix reuse                   |
-| `--findings`        | findings with calculation, assumptions, evidence           |
-| `--report`          | full report                                                |
-| `--events`          | priced events and failed attempts (debug)                  |
-| `--session <id>`    | one session's events and summary                            |
-| `--tz <zone>`       | day bucketing (`UTC` default)                              |
-| `--db <path>`       | database path                                              |
-| `--json`            | JSON on stdout, warnings on stderr                         |
-| `--check-privacy`   | fail on banned keys in the serialised output               |
+| Flag              | Output                                                     |
+| ----------------- | ---------------------------------------------------------- |
+| `--totals`        | calls, sessions, tokens, observed/estimated/headline costs |
+| `--models`        | per model: calls, tokens, costs, unpriced, share           |
+| `--sessions`      | per session: calls, tokens, cost, cache, subagent flag     |
+| `--cache`         | cache read/write, hit rate, prefix reuse                   |
+| `--findings`      | findings with calculation, assumptions, evidence           |
+| `--report`        | full report                                                |
+| `--events`        | priced events and failed attempts (debug)                  |
+| `--session <id>`  | one session's events and summary                           |
+| `--tz <zone>`     | day bucketing (`UTC` default)                              |
+| `--db <path>`     | database path                                              |
+| `--json`          | JSON on stdout, warnings on stderr                         |
+| `--check-privacy` | fail on banned keys in the serialised output               |
 
 Presentation: plain ASCII, no em dashes, no box drawing, warnings on stderr,
 exit `0` on success, `1` on runtime failure, `64` on usage errors.
@@ -762,21 +772,20 @@ Files:
 
 Exit checklist:
 
-- [ ] `npm run typecheck`, `npm run build`, and `npm test` are green.
-- [ ] The 12 existing tests still pass, plus the new Phase 3 tests.
-- [ ] `buildEvents` and `buildReport` are pure and clock-free.
-- [ ] Fixture totals are deterministic and exact.
-- [ ] Observed totals match SQL on a snapshot.
-- [ ] `gpt-oss:120b` estimated cost equals observed cost on the snapshot.
-- [ ] Unpriced models are listed, never counted as `$0` spend.
-- [ ] Free model ids never resolve to paid cards.
-- [ ] Every finding has evidence, assumptions, and a calculation.
-- [ ] Cache writes of zero are reported as "not recorded", not NaN.
-- [ ] Report JSON is byte-identical across two runs on one dataset.
-- [ ] No prompt text, tool output, or compaction summary appears in any output.
-- [ ] The source database and `MUNIN_DIR` are unchanged after a run.
-- [ ] Docs record the pricing date, the accounting authority, and the deferred
-      rules.
+- [x] `npm run typecheck`, `npm run build`, and `npm test` are green. (76 tests pass.)
+- [x] The 12 existing tests still pass, plus the new Phase 3 tests. (76 total: the 12 Phase 1 tests unchanged; Phase 3 adds 69 across its step suites.)
+- [x] `buildEvents` and `buildReport` are pure and clock-free. (Report byte-identity test; projection measured back from last call.)
+- [x] Fixture totals are deterministic and exact. (Exact dollar/token assertions across pricing, build, summary, cache, findings suites.)
+- [x] Observed totals match SQL on a snapshot. (2026-10-22 exit snapshot: calls 1,563, input 7,478,956, priced output 1,079,026, cache read 102,092,792, write 0, observed $0.759757726 — all exact.)
+- [x] `gpt-oss:120b` estimated cost equals observed cost on the snapshot. (654 calls, delta `0`.)
+- [x] Unpriced models are listed, never counted as `$0` spend. (None unpriced on local history; fixture coverage in cache/summary suites.)
+- [x] Free model ids never resolve to paid cards. (Exact-$0-card-only resolution, `glm-5.3-flash-free` vs paid `glm-5.3-flash`.)
+- [x] Every finding has evidence, assumptions, and a calculation. (Enforced by `findingValidationProblems`; detector suite asserts exact text frames.)
+- [x] Cache writes of zero are reported as "not recorded", not NaN. (`writesRecorded: false`; hit rate `null` shape.)
+- [x] Report JSON is byte-identical across two runs on one dataset. (Snapshot test + `shasum` match on the exit snapshot.)
+- [x] No prompt text, tool output, or compaction summary appears in any output. (`--check-privacy` ok on live and snapshot; banned keys incl. `prompt`, `oldString`.)
+- [x] The source database and `MUNIN_DIR` are unchanged after a run. (Hash match; fresh state dir stays empty.)
+- [x] Docs record the pricing date, the accounting authority, and the deferred rules. (`docs/analysis.md`, `docs/pricing.md`, `docs/reports.md`, ADR-0007, diagnostics rows, this section.)
 
 ## How to verify by hand
 
