@@ -100,6 +100,10 @@ _Avoid_: check, heuristic
 The scan's account of what it read and could not read: schema detected, records skipped, unpriced models, and reconciliation deltas.
 _Avoid_: diagnostics
 
+**Diagnostics**:
+How a command reports failure and non-fatal warnings: streams, exit codes, and stable codes. Distinct from data health, which is report content.
+_Avoid_: using it for scan health
+
 **Apply**:
 A supported, reversible change written to project-level OpenCode configuration.
 _Avoid_: fix, patch

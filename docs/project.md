@@ -181,6 +181,9 @@ the apps can still be empty shells.
 **Exit criterion:** A clean checkout installs, typechecks, builds all
 packages and runs tests.
 
+Status: complete on 2026-10-22 with the dashboard deferred to Phase 7. The
+executed scope and exit record are in `docs/plans/phase-1-completion.md`.
+
 ------------------------------------------------------------------------
 
 ## Phase 2 --- Local data ingestion and OpenCode compatibility

@@ -11,34 +11,18 @@
  */
 import { readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { isAbsolute, join, resolve } from "node:path";
-import type { SourceWarning } from "@munin/core";
-
-/** Files Munin derives from source history. Nothing here mirrors OpenCode's data. */
-export interface LedgerPaths {
-  root: string;
-  events: string;
-  snapshots: string;
-  changes: string;
-  decisions: string;
-  verifications: string;
-}
-
-export interface MuninPaths {
-  /** Where Munin keeps derived state. Defaults to `~/.munin`. */
-  stateDir: string;
-  settingsPath: string;
-  ledger: LedgerPaths;
-  /** The OpenCode database path the platform default points at. */
-  defaultDbPath: string;
-  /** Set only when `MUNIN_DB` names a path. */
-  envDbPath?: string;
-}
+import { WARNING_CODES, type SourceWarning } from "@munin/core";
+import { absolutePath, pathFor, resolvePlatformPaths } from "./paths.js";
+import type { MuninPaths } from "./paths.js";
 
 export interface ResolvePathsOptions {
   env?: NodeJS.ProcessEnv;
   /** Overrides `MUNIN_DIR`; used by tests and by an explicit flag. */
   stateDir?: string;
+  /** Defaults to `process.platform`; tests pass `win32` to prove Windows rules. */
+  platform?: NodeJS.Platform;
+  /** Defaults to `os.homedir()`. `HOME` is never consulted. */
+  home?: string;
 }
 
 /** Where the resolved database path came from, so `status` can explain it. */
@@ -80,51 +64,20 @@ export type SourceDatabaseStatus =
   | { kind: "missing"; path: string }
   | { kind: "unreadable"; path: string; reason: string };
 
-/** Absolute form of a possibly relative path. Never expands `~`; shells do that. */
-function absolute(path: string): string {
-  return isAbsolute(path) ? path : resolve(path);
-}
-
-function homeDir(env: NodeJS.ProcessEnv): string {
-  return env.HOME && env.HOME.length > 0 ? env.HOME : homedir();
-}
-
 /**
  * Resolve paths without touching the filesystem.
  *
- * `XDG_DATA_HOME` is ignored when relative, which is what the XDG spec asks
- * for; a relative data home would otherwise silently point at the cwd.
+ * Home comes from `os.homedir()`, not `HOME`. Git Bash on Windows sets
+ * `HOME=/c/Users/...`, which is not a native path and would corrupt every
+ * `path.join` below it.
  */
 export function resolvePaths(options: ResolvePathsOptions = {}): MuninPaths {
-  const env = options.env ?? process.env;
-  const home = homeDir(env);
-  const dataHome =
-    env.XDG_DATA_HOME && isAbsolute(env.XDG_DATA_HOME)
-      ? env.XDG_DATA_HOME
-      : join(home, ".local", "share");
-
-  // Empty strings are treated as unset; `resolve("")` would quietly mean the cwd.
-  const stateOverride =
-    options.stateDir && options.stateDir.length > 0 ? options.stateDir : undefined;
-  const envState = env.MUNIN_DIR && env.MUNIN_DIR.length > 0 ? env.MUNIN_DIR : undefined;
-  const stateDir = absolute(stateOverride ?? envState ?? join(home, ".munin"));
-
-  const envDbPath = env.MUNIN_DB && env.MUNIN_DB.length > 0 ? absolute(env.MUNIN_DB) : undefined;
-
-  return {
-    stateDir,
-    settingsPath: join(stateDir, "config.json"),
-    ledger: {
-      root: stateDir,
-      events: join(stateDir, "events.jsonl"),
-      snapshots: join(stateDir, "snapshots.jsonl"),
-      changes: join(stateDir, "changes.jsonl"),
-      decisions: join(stateDir, "decisions.json"),
-      verifications: join(stateDir, "verifications.json"),
-    },
-    defaultDbPath: join(dataHome, "opencode", "opencode.db"),
-    ...(envDbPath === undefined ? {} : { envDbPath }),
-  };
+  return resolvePlatformPaths({
+    platform: options.platform ?? process.platform,
+    home: options.home ?? homedir(),
+    env: options.env ?? process.env,
+    ...(options.stateDir === undefined ? {} : { stateDir: options.stateDir }),
+  });
 }
 
 function reasonOf(error: unknown): string {
@@ -147,7 +100,7 @@ export function loadSettings(settingsPath: string): SettingsResult {
       settings: {},
       warnings: [
         {
-          code: "config.unreadable",
+          code: WARNING_CODES.configUnreadable,
           message: `Could not read ${settingsPath}: ${reasonOf(error)}`,
         },
       ],
@@ -161,7 +114,10 @@ export function loadSettings(settingsPath: string): SettingsResult {
     return {
       settings: {},
       warnings: [
-        { code: "config.unparseable", message: `${settingsPath} is not valid JSON; using defaults` },
+        {
+          code: WARNING_CODES.configUnparseable,
+          message: `${settingsPath} is not valid JSON; using defaults`,
+        },
       ],
     };
   }
@@ -170,7 +126,10 @@ export function loadSettings(settingsPath: string): SettingsResult {
     return {
       settings: {},
       warnings: [
-        { code: "config.invalid", message: `${settingsPath} must contain a JSON object; using defaults` },
+        {
+          code: WARNING_CODES.configInvalid,
+          message: `${settingsPath} must contain a JSON object; using defaults`,
+        },
       ],
     };
   }
@@ -183,7 +142,10 @@ export function loadSettings(settingsPath: string): SettingsResult {
     if (typeof object.db === "string" && object.db.trim().length > 0) {
       settings.db = object.db;
     } else {
-      warnings.push({ code: "config.invalid-db", message: "config.json `db` must be a non-empty string" });
+      warnings.push({
+        code: WARNING_CODES.configInvalidDb,
+        message: "config.json `db` must be a non-empty string",
+      });
     }
   }
 
@@ -192,7 +154,7 @@ export function loadSettings(settingsPath: string): SettingsResult {
       settings.days = object.days;
     } else {
       warnings.push({
-        code: "config.invalid-days",
+        code: WARNING_CODES.configInvalidDays,
         message: "config.json `days` must be a positive number",
       });
     }
@@ -202,7 +164,10 @@ export function loadSettings(settingsPath: string): SettingsResult {
     if (typeof object.tz === "string" && object.tz.trim().length > 0) {
       settings.tz = object.tz;
     } else {
-      warnings.push({ code: "config.invalid-tz", message: "config.json `tz` must be a non-empty string" });
+      warnings.push({
+        code: WARNING_CODES.configInvalidTz,
+        message: "config.json `tz` must be a non-empty string",
+      });
     }
   }
 
@@ -214,11 +179,19 @@ export function loadSettings(settingsPath: string): SettingsResult {
  * with its origin. Does not check whether anything exists.
  */
 export function loadConfig(options: LoadConfigOptions = {}): ResolvedConfig {
+  const platform = options.platform ?? process.platform;
+  const impl = pathFor(platform);
   const paths = resolvePaths(options);
   const { settings, warnings } = loadSettings(paths.settingsPath);
 
   if (options.db !== undefined && options.db.length > 0) {
-    return { paths, dbPath: absolute(options.db), dbOrigin: "flag", settings, warnings };
+    return {
+      paths,
+      dbPath: absolutePath(options.db, platform),
+      dbOrigin: "flag",
+      settings,
+      warnings,
+    };
   }
   if (paths.envDbPath !== undefined) {
     return { paths, dbPath: paths.envDbPath, dbOrigin: "env", settings, warnings };
@@ -226,7 +199,9 @@ export function loadConfig(options: LoadConfigOptions = {}): ResolvedConfig {
   if (settings.db !== undefined) {
     // Relative settings paths belong to the state directory, not the cwd: the
     // config travels with the state root it lives in.
-    const dbPath = isAbsolute(settings.db) ? settings.db : resolve(paths.stateDir, settings.db);
+    const dbPath = impl.isAbsolute(settings.db)
+      ? impl.normalize(settings.db)
+      : impl.resolve(paths.stateDir, settings.db);
     return { paths, dbPath, dbOrigin: "settings", settings, warnings };
   }
   return { paths, dbPath: paths.defaultDbPath, dbOrigin: "default", settings, warnings };

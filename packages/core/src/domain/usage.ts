@@ -49,20 +49,11 @@ export interface TokenCounts {
  * output, reasoning. Never from prompt text.
  */
 export type TaskKind =
-  | "quick-edit"
-  | "lookup"
-  | "conversation"
-  | "multi-step"
-  | "debugging"
-  | "reasoning";
+  "quick-edit" | "lookup" | "conversation" | "multi-step" | "debugging" | "reasoning";
 
 /** What a call was doing, inferred from token counts and tool use (not intent). */
 export type WorkloadCategory =
-  | "reasoning"
-  | "tool-orchestration"
-  | "generation"
-  | "mechanical"
-  | "unknown";
+  "reasoning" | "tool-orchestration" | "generation" | "mechanical" | "unknown";
 
 export interface ToolCall {
   id: string;

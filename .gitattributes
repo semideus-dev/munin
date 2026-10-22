@@ -1,0 +1,11 @@
+# Keep the checkout identical on macOS, Linux and Windows.
+* text=auto eol=lf
+
+# Binary files must never be normalised.
+*.db binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff2 binary

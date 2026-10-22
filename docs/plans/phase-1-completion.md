@@ -1,9 +1,9 @@
 # Phase 1 completion plan
 
-Status: in progress
+Status: complete (closed 2026-10-22)
 Owner: team
 Scope: finish Phase 1 of `docs/project.md` without the dashboard
-Estimated effort: 4 to 5 hours
+Estimated effort: 3 to 3.5 hours (hackathon scope: harness plus three tests, no CI)
 
 ## Context
 
@@ -109,56 +109,47 @@ Acceptance:
 
 - `docs/diagnostics.md` lists codes, exit codes, and JSON shapes.
 - `MuninError` and `WARNING_CODES` are exported from core.
-- Exit mapping has a unit test.
 - No command prints a stack trace for an expected error.
 
-## Step 3: Test harness
+## Step 3: Test harness (three tests, hackathon scope)
 
-Files: `tests/fixtures/records.mjs` (new), `tests/unit/*.test.mjs` (new), root `package.json` scripts, `docs/testing.md` (new, short).
+Files: `tests/unit/*.test.mjs` (new), root `package.json` scripts.
 
-- Use `node --test` against built output, like the reference. No extra test framework.
+- Use `node --test` against built output. No extra framework, no fixtures module yet.
 - Root scripts:
 
   ```json
   "pretest": "npm run build",
-  "test": "node --test tests/unit"
+  "test": "node --test"
   ```
 
-  Directory form avoids shell globs, which differ on Windows.
+  Bare `node --test` discovers `tests/unit/*.test.mjs` recursively without shell globs, which differ on Windows.
 
-- Fixtures: builders for `SourceSession`, `SourceMessage`, `Dataset` and `UsageEvent`. Text fields are shape-only, never prompt text.
-- Temp state: `fs.mkdtempSync(path.join(os.tmpdir(), "munin-"))`, cleaned in `after`.
-- Minimum suite:
-  1. config defaults for win32, darwin, linux
-  2. `XDG_DATA_HOME` accepted when absolute, ignored when relative
-  3. `--db` beats `MUNIN_DB` beats settings beats default
-  4. Git-Bash-style `HOME` ignored; `os.homedir()` default used
-  5. malformed `config.json` degrades with the right warning code
-  6. `inspectSourceDatabase` returns `ready`, `missing`, `unreadable`
-  7. domain: `CostCalculation.total` follows `basis` (observed vs estimated)
-  8. diagnostics: `MuninError` maps to the documented exit codes
+- Exactly three tests:
+  1. **Platform path matrix**: win32, darwin and linux defaults through the pure resolver, including `XDG_DATA_HOME` absolute vs relative.
+  2. **DB precedence**: `--db` beats `MUNIN_DB` beats `config.json db` beats the default.
+  3. **Cost basis**: `CostCalculation.total` follows `basis` (observed vs estimated) in core.
 - Assert that a failing test exits non-zero; delete the current vacuous pass.
+- Deliberately not tested yet: exit-code mapping, warning registry, `inspectSourceDatabase` states, fixtures for the reader. Those arrive with the code that needs them.
 
 Acceptance:
 
 - `npm test` prints real results and fails when a test fails.
-- Suite runs on macOS now; the Windows-only path assertions run everywhere through the pure resolver.
-- `npm run test` does not need network or the user's real database.
+- The Windows assertions run on any machine through the pure resolver.
+- `npm test` needs no network and never reads the user's real database.
 
-## Step 4: Portability hardening
+## Step 4: Portability hardening (minimal)
 
-Files: `.gitattributes` (new), `.editorconfig` (new, optional), `.github/workflows/ci.yml` (new, optional), `package.json`.
+Files: `.gitattributes` (new), `package.json`, `README.md` (Windows notes land in Step 5).
 
-- `.gitattributes`: `* text=auto eol=lf`, plus `*.png binary`, `*.db binary`, and `*.bat text eol=crlf` if ever added. This stops Windows checkouts from rewriting scripts and fixtures.
-- No shell syntax in npm scripts. Audit every `scripts` entry for `rm`, `cp`, `&&` chains that assume a POSIX shell; use Node one-liners or separate scripts instead.
-- CI matrix (recommended, cheap): Ubuntu, macOS, Windows on Node 24 running `npm ci && npm run typecheck && npm run build && npm test`. It will only run once the repo has a GitHub remote, but it is the only real proof for a distributed team.
-- Document Windows prerequisites in the README: Node 24, PowerShell commands, no admin rights needed, DB path is still `%USERPROFILE%\.local\share\opencode\opencode.db` unless `XDG_DATA_HOME` is set.
+- `.gitattributes`: `* text=auto eol=lf`, plus `*.db binary` and `*.png binary`. This stops Windows checkouts from rewriting scripts and fixtures.
+- No shell syntax in npm scripts. Audit every `scripts` entry for `rm`, `cp`, or `&&` chains that assume a POSIX shell; use Node one-liners or separate scripts instead.
+- Skip CI for now. The repo has no remote, and a workflow that never runs is theatre. Revisit in Phase 8 if the project is pushed.
 
 Acceptance:
 
 - `.gitattributes` present and committed.
 - `grep` over npm scripts finds no POSIX-only commands.
-- CI workflow is valid YAML and runs the same commands as the README.
 
 ## Step 5: README and clean-checkout proof
 
@@ -194,14 +185,24 @@ Acceptance:
 
 ## Step 6: Phase 1 exit review
 
-- [ ] Config resolves correctly on win32, darwin, linux (unit-proven)
-- [ ] Diagnostics documented and enforced
-- [ ] `npm test` runs real tests and fails on failure
-- [ ] `.gitattributes` and portable scripts
-- [ ] README with Windows notes
-- [ ] Clean checkout installs, typechecks, builds three packages, tests green
-- [ ] Dashboard deferral recorded in the plan, parity matrix, ADR-0006 note
-- [ ] Nothing from Phase 2 leaked in (no DB opened, no V2 parsing, no pricing)
+- [x] Config resolves correctly on win32, darwin, linux (unit-proven)
+- [x] Diagnostics documented and enforced (`MuninError`, `WARNING_CODES`, `apps/cli/src/exit.ts`)
+- [x] `npm test` runs real tests and fails on failure
+- [x] `.gitattributes` and portable scripts
+- [x] README with Windows notes
+- [x] Clean checkout installs, typechecks, builds three packages, tests green
+- [x] Dashboard deferral recorded in the plan, parity matrix, ADR-0006 note
+- [x] Nothing from Phase 2 leaked in (no DB opened, no V2 parsing, no pricing)
+
+Exit record, macOS with Node 24.21 and npm 11.19:
+
+- `rm -rf node_modules packages/*/dist apps/*/dist && npm ci` succeeded
+- `npm run typecheck` green (it builds first, so a fresh checkout works)
+- `npm test` 3 passed, 0 failed; a deliberate failure exited `1`
+- `node apps/cli/dist/cli.js --version` printed `0.1.0`
+
+Windows caveat: path rules are unit-proven through the win32 resolver, but a
+manual run on a Windows machine is still recommended before release.
 
 Then Phase 2 starts: V2 reader `opencode-v2.ts`, schema detection, instruction hashes, and the first real scan against a local database.
 
@@ -217,5 +218,5 @@ Then Phase 2 starts: V2 reader `opencode-v2.ts`, schema detection, instruction h
 
 - **Windows SQLite locking** is untested until Phase 2. Mitigation then: open read-only, set a busy timeout, never write, and fall back to a copy if a locked WAL blocks reads. Note it in Phase 2, not here.
 - **Path case-insensitivity** on Windows and default macOS can cause duplicate project identities. Deferred to Phase 2/3 where projects are keyed; the resolver should never key on raw path strings.
-- **CI is unproven** until the repo has a remote. Treat the manual Windows checklist as required if CI cannot run.
+- **No CI yet** (intentionally deferred; the repo has no remote). The win32 rules are unit-proven, but a manual Windows run of install, typecheck and test is required before release.
 - **Long paths on Windows** (>260 chars) can fail without `\\?\` prefixes. Out of scope unless a teammate hits it.
