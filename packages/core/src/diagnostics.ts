@@ -36,7 +36,8 @@ export class MuninError extends Error {
 
 /**
  * Every non-fatal warning code Munin can emit. Frozen so docs and tests cannot
- * drift from the implementation. Phase 2 adds `source.*` entries.
+ * drift from the implementation. Phase 2 adds `source.*`; Phase 3 adds
+ * `price.*` and `analysis.*`.
  */
 export const WARNING_CODES = {
   configUnreadable: "config.unreadable",
@@ -58,6 +59,13 @@ export const WARNING_CODES = {
   sourceMissingCost: "source.missing-cost",
   sourceAggregateMismatch: "source.aggregate-mismatch",
   sourceInstructionMissing: "source.instruction-missing",
+
+  priceUnpricedModel: "price.unpriced-model",
+
+  analysisNoEvents: "analysis.no-events",
+  analysisProjectLabelCollision: "analysis.project-label-collision",
+  analysisInvalidFinding: "analysis.invalid-finding",
+  analysisDetectorError: "analysis.detector-error",
 } as const;
 
 export type WarningCode = (typeof WARNING_CODES)[keyof typeof WARNING_CODES];

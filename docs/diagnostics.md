@@ -72,7 +72,15 @@ Registry (frozen in `WARNING_CODES`, `packages/core/src/diagnostics.ts`):
 | `config.invalid-tz`   | `tz` is not a non-empty string             |
 
 Phase 2 adds `source.*` codes for skipped records, unknown schemas, and
-aggregate reconciliation.
+aggregate reconciliation. Phase 3 adds `price.*` and `analysis.*` codes.
+
+| Code                               | Meaning                                                                                    |
+| ---------------------------------- | ------------------------------------------------------------------------------------------ |
+| `price.unpriced-model`             | a model has calls but no card; aggregated by model, with its call count and observed spend |
+| `analysis.no-events`               | the dataset contains no usage-bearing model calls                                          |
+| `analysis.project-label-collision` | one project label maps to more than one project id                                         |
+| `analysis.invalid-finding`         | a detector produced a finding without its calculation or assumptions                       |
+| `analysis.detector-error`          | a detector threw and was skipped; named with the rule that failed                          |
 
 Aggregation: one line per code, with `count` when it covers many records. Do not
 print the same warning N times.
