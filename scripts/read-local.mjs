@@ -9,6 +9,7 @@ import {
   readV2Rows,
 } from "@munin/local";
 import { MuninError, reconcileAggregates } from "@munin/core";
+import { err, group, heading, kv, out, sep } from "./lib/output.mjs";
 
 function printUsage() {
   console.error(
@@ -86,11 +87,13 @@ function parseArgs(argv) {
 }
 
 function printSchema(result, dbPath) {
-  console.log(`db: ${dbPath}`);
-  console.log(`schema: ${result.schema}`);
-  console.log(`tables: ${result.tables.join(", ")}`);
-  console.log(
-    `session counts: session=${result.sessionCounts.session}, session_v2=${result.sessionCounts.session_v2}`,
+  heading("Schema");
+  kv("db", dbPath);
+  kv("schema", result.schema);
+  kv("tables", result.tables.join(", "));
+  kv(
+    "session counts",
+    `session ${group(result.sessionCounts.session)}, session_v2 ${group(result.sessionCounts.session_v2)}`,
   );
 }
 
@@ -98,18 +101,21 @@ function printRows(result, instructions, dbPath) {
   const totalTextChars = result.textLengths.reduce((sum, row) => sum + row.text_chars, 0);
   const typePairs = Object.entries(result.messageTypeCounts).sort(([a], [b]) => a.localeCompare(b));
   const typeText =
-    typePairs.length === 0 ? "none" : typePairs.map(([type, count]) => `${type}=${count}`).join(", ");
+    typePairs.length === 0
+      ? "none"
+      : typePairs.map(([type, count]) => `${type}=${count}`).join(", ");
 
-  console.log(`db: ${dbPath}`);
-  console.log(`sessions: ${result.sessions.length}`);
-  console.log(`message types: ${typeText}`);
-  console.log(`messages: ${result.messages.length}`);
-  console.log(`invalid json rows: ${result.invalidJsonRows}`);
-  console.log(`tool calls: ${result.tools.length}`);
-  console.log(`text chars: ${totalTextChars}`);
-  console.log(`instruction sessions: ${instructions.bySession.length}`);
-  console.log(`instruction entries: ${instructions.entries.length}`);
-  console.log(`instruction chars: ${instructions.bySession.reduce((sum, row) => sum + row.chars, 0)}`);
+  heading("Rows");
+  kv("db", dbPath);
+  kv("sessions", group(result.sessions.length));
+  kv("message types", typeText);
+  kv("messages", group(result.messages.length));
+  kv("invalid json rows", group(result.invalidJsonRows));
+  kv("tool calls", group(result.tools.length));
+  kv("text chars", group(totalTextChars));
+  kv("instruction sessions", group(instructions.bySession.length));
+  kv("instruction entries", group(instructions.entries.length));
+  kv("instruction chars", group(instructions.bySession.reduce((sum, row) => sum + row.chars, 0)));
 }
 
 function summarize(dataset, sessionId) {
@@ -122,7 +128,9 @@ function summarize(dataset, sessionId) {
     ? dataset.messages.filter((message) => sessionSet.has(message.sessionId))
     : dataset.messages;
 
-  const modelCalls = messages.filter((message) => message.type === "assistant" || message.type === "compaction");
+  const modelCalls = messages.filter(
+    (message) => message.type === "assistant" || message.type === "compaction",
+  );
 
   const totals = {
     input: 0,
@@ -168,45 +176,55 @@ function summarize(dataset, sessionId) {
 }
 
 function printSummary(summary, dbPath, sessionId) {
-  console.log(`db: ${dbPath}`);
-  console.log(`schema: ${summary.schema}`);
-  if (sessionId !== undefined) {
-    console.log(`session: ${sessionId}`);
-  }
-  console.log(`sessions: ${summary.sessions}`);
-  console.log(`messages: ${summary.messages}`);
-  console.log(`model calls: ${summary.modelCalls}`);
-  console.log(`tokens input: ${summary.totals.input}`);
-  console.log(`tokens output: ${summary.totals.output}`);
-  console.log(`tokens reasoning: ${summary.totals.reasoning}`);
-  console.log(`tokens cache read: ${summary.totals.cacheRead}`);
-  console.log(`tokens cache write: ${summary.totals.cacheWrite}`);
-  console.log(`observed cost usd: ${summary.totals.observedCost}`);
-  console.log(`subagent sessions: ${summary.subagentCount}`);
-  console.log(`instruction sessions: ${summary.instructionSessions}`);
-  console.log(`instruction chars: ${summary.instructionChars}`);
+  heading("Summary");
+  kv("db", dbPath);
+  kv("schema", summary.schema);
+  if (sessionId !== undefined) kv("session", sessionId);
+  kv("sessions", group(summary.sessions));
+  kv("messages", group(summary.messages));
+  kv("model calls", group(summary.modelCalls));
+  kv(
+    "tokens",
+    [
+      `input ${group(summary.totals.input)}`,
+      `output ${group(summary.totals.output)}`,
+      `reasoning ${group(summary.totals.reasoning)}`,
+      `cache read ${group(summary.totals.cacheRead)}`,
+      `cache write ${group(summary.totals.cacheWrite)}`,
+    ].join(sep()),
+  );
+  kv("observed cost usd", summary.totals.observedCost);
+  kv("subagent sessions", group(summary.subagentCount));
+  kv("instruction sessions", group(summary.instructionSessions));
+  kv("instruction chars", group(summary.instructionChars));
 
   if (summary.warnings.length === 0) {
-    console.log("warnings: none");
+    kv("warnings", "none");
     return;
   }
 
   const parts = summary.warnings.map((warning) =>
     warning.count === undefined ? warning.code : `${warning.code}(${warning.count})`,
   );
-  console.log(`warnings: ${parts.join(", ")}`);
+  kv("warnings", out.yellow(parts.join(", ")));
 }
 
 function printReconcile(result, dbPath) {
-  console.log(`db: ${dbPath}`);
-  console.log(`checked sessions: ${result.checkedSessions}`);
-  console.log(`mismatch sessions: ${result.mismatchSessions}`);
-  console.log(`largest delta: ${result.largestDelta}`);
+  heading("Reconcile");
+  kv("db", dbPath);
+  kv("checked sessions", group(result.checkedSessions));
+  kv(
+    "mismatch sessions",
+    result.mismatchSessions > 0
+      ? out.red(group(result.mismatchSessions))
+      : group(result.mismatchSessions),
+  );
+  kv("largest delta", group(result.largestDelta));
   if (result.warning === undefined) {
-    console.log("warning: none");
+    kv("warning", "none");
     return;
   }
-  console.log(`warning: ${result.warning.code}(${result.warning.count ?? 0})`);
+  kv("warning", out.yellow(`${result.warning.code}(${result.warning.count ?? 0})`));
 }
 
 function hasBannedKeys(value, banned, path = "$", found = []) {
@@ -216,9 +234,7 @@ function hasBannedKeys(value, banned, path = "$", found = []) {
   ]);
 
   function normalizePath(inputPath) {
-    return inputPath
-      .replace(/\[\d+\]/g, "[]")
-      .replace(/\.warnings\[\d+\]/g, ".warnings[]");
+    return inputPath.replace(/\[\d+\]/g, "[]").replace(/\.warnings\[\d+\]/g, ".warnings[]");
   }
   if (Array.isArray(value)) {
     for (let index = 0; index < value.length; index += 1) {
@@ -246,7 +262,7 @@ function hasBannedKeys(value, banned, path = "$", found = []) {
 
 function reportExpectedError(error) {
   if (error instanceof MuninError) {
-    console.error(`[${error.code}] ${error.message}`);
+    console.error(`${err.red(`[${error.code}]`)} ${error.message}`);
     process.exit(1);
   }
 
@@ -260,7 +276,7 @@ function main() {
     args = parseArgs(process.argv.slice(2));
   } catch (error) {
     printUsage();
-    console.error(`error: ${error.message}`);
+    console.error(`${err.red("error:")} ${error.message}`);
     process.exit(64);
   }
 
@@ -273,7 +289,7 @@ function main() {
     Number(args.session !== undefined);
   if (selectedModes > 1) {
     printUsage();
-    console.error("error: choose only one mode");
+    console.error(`${err.red("error:")} choose only one mode`);
     process.exit(64);
   }
 
@@ -291,17 +307,24 @@ function main() {
   const config = loadConfig(args.db ? { db: args.db } : {});
 
   if (!existsSync(config.dbPath)) {
-    console.error(`[source.missing-db] Database not found: ${config.dbPath}`);
+    console.error(`${err.red(`[source.missing-db]`)} Database not found: ${config.dbPath}`);
     process.exit(1);
   }
 
-  if (mode === "summary" || mode === "session" || mode === "reconcile" || mode === "check-privacy") {
+  if (
+    mode === "summary" ||
+    mode === "session" ||
+    mode === "reconcile" ||
+    mode === "check-privacy"
+  ) {
     try {
       const dataset = readDataset(args.db ? { db: args.db } : {});
       if (mode === "reconcile") {
         const result = reconcileAggregates(dataset);
         if (args.json) {
-          console.log(JSON.stringify({ ok: true, data: { db: config.dbPath, ...result } }, null, 2));
+          console.log(
+            JSON.stringify({ ok: true, data: { db: config.dbPath, ...result } }, null, 2),
+          );
         } else {
           printReconcile(result, config.dbPath);
         }
@@ -313,25 +336,55 @@ function main() {
         const found = hasBannedKeys(dataset, banned);
         if (found.length > 0) {
           if (args.json) {
-            console.log(JSON.stringify({ ok: false, error: { code: "source.privacy-violation", message: `Found banned keys at ${found.join(', ')}` } }, null, 2));
+            console.log(
+              JSON.stringify(
+                {
+                  ok: false,
+                  error: {
+                    code: "source.privacy-violation",
+                    message: `Found banned keys at ${found.join(", ")}`,
+                  },
+                },
+                null,
+                2,
+              ),
+            );
           } else {
-            console.error(`[source.privacy-violation] Found banned keys at ${found.join(", ")}`);
+            console.error(
+              `${err.red(`[source.privacy-violation]`)} Found banned keys at ${found.join(", ")}`,
+            );
           }
           process.exit(1);
         }
 
         if (args.json) {
-          console.log(JSON.stringify({ ok: true, data: { db: config.dbPath, bannedKeysFound: 0 } }, null, 2));
+          console.log(
+            JSON.stringify({ ok: true, data: { db: config.dbPath, bannedKeysFound: 0 } }, null, 2),
+          );
         } else {
-          console.log(`db: ${config.dbPath}`);
-          console.log("privacy: ok");
+          heading("Privacy check");
+          kv("db", config.dbPath);
+          kv("privacy", out.green("ok"));
         }
         return;
       }
 
       const summary = summarize(dataset, args.session);
       if (args.json) {
-        console.log(JSON.stringify({ ok: true, data: { db: config.dbPath, ...(args.session === undefined ? {} : { session: args.session }), ...summary } }, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              ok: true,
+              data: {
+                db: config.dbPath,
+                ...(args.session === undefined ? {} : { session: args.session }),
+                ...summary,
+              },
+            },
+            null,
+            2,
+          ),
+        );
       } else {
         printSummary(summary, config.dbPath, args.session);
       }
@@ -345,7 +398,7 @@ function main() {
   try {
     db = openReadOnly(config.dbPath);
   } catch (error) {
-    console.error(`[source.open-failed] Could not open database: ${config.dbPath}`);
+    console.error(`${err.red(`[source.open-failed]`)} Could not open database: ${config.dbPath}`);
     console.error(String(error instanceof Error ? error.message : error));
     process.exit(1);
   }
@@ -359,7 +412,9 @@ function main() {
     }
 
     if (schemaResult.schema !== "v2" && schemaResult.schema !== "mixed") {
-      console.error(`[source.unsupported-schema] --rows requires v2 or mixed schema, found ${schemaResult.schema}`);
+      console.error(
+        `${err.red(`[source.unsupported-schema]`)} --rows requires v2 or mixed schema, found ${schemaResult.schema}`,
+      );
       process.exit(1);
     }
 

@@ -8,6 +8,20 @@
 import { existsSync } from "node:fs";
 import { loadConfig, readDataset } from "@munin/local";
 import { buildEvents, buildReport, MuninError } from "@munin/core";
+import {
+  err,
+  group,
+  heading,
+  hline,
+  kv,
+  LIST_INDENT,
+  out,
+  pct,
+  sep,
+  sub,
+  table,
+  usd,
+} from "./lib/output.mjs";
 
 const BANNED_KEYS = new Set([
   // Message bodies, prompt text, and stored blobs. Titles, paths, hashes,
@@ -79,11 +93,6 @@ function parseArgs(argv) {
 
 /* ---------- formatting: plain ASCII, deterministic, no box drawing ---------- */
 
-const usd = (value) => `$${value.toFixed(6)}`;
-const group = (value) => value.toLocaleString("en-US");
-const pct = (value) => (value === null ? "n/a" : `${(value * 100).toFixed(2)}%`);
-const pad = (text, width) => (text.length >= width ? text : text + " ".repeat(width - text.length));
-
 function tokensLine(event) {
   const write =
     event.cacheWriteTokens ?? (event.cacheWrite5mTokens ?? 0) + (event.cacheWrite1hTokens ?? 0);
@@ -96,53 +105,91 @@ function tokensLine(event) {
   ].join(" ");
 }
 
-function eventLine(event) {
-  return `  ${event.id}  ${event.ts}  ${event.model}  ${tokensLine(event)}  ${event.cost.basis}=${usd(event.cost.total)}`;
+function eventTokens(event) {
+  const write =
+    event.cacheWriteTokens ?? (event.cacheWrite5mTokens ?? 0) + (event.cacheWrite1hTokens ?? 0);
+  return [
+    group(event.inputTokens),
+    group(event.outputTokens),
+    group(event.thinkingTokens),
+    group(event.cacheReadTokens),
+    group(write),
+  ];
 }
 
-function failedLine(attempt) {
-  return `  ${attempt.id}  ${attempt.ts}  ${attempt.errorType ?? "no usage"}${attempt.type === "compaction" ? " (compaction)" : ""}`;
+const TIER_STYLES = {
+  fix: (text) => out.green(text),
+  try: (text) => out.yellow(text),
+  test: (text) => out.cyan(text),
+};
+
+function severityStyle(text) {
+  if (text === "high") return (value) => out.red(value);
+  if (text === "medium") return (value) => out.yellow(value);
+  if (text === "low") return (value) => out.green(value);
+  return (value) => value;
 }
 
 function warningLines(warnings) {
   for (const warning of warnings) {
     const count = warning.count === undefined ? "" : ` (x${warning.count})`;
-    console.error(`[${warning.code}] ${warning.message}${count}`);
+    console.error(`${err.yellow(`[${warning.code}]`)} ${warning.message}${count}`);
   }
 }
 
 /* ---------- human formatters ---------- */
 
-function printTotals(report, dbPath) {
+function printTotals(report, dbPath, showDb = true) {
   const t = report.totals;
   const s = report.savings;
-  console.log(`db: ${dbPath}`);
-  console.log(`time zone: ${report.timeZone}`);
-  console.log(
-    `window: ${report.window.start} .. ${report.window.end} (${report.window.days.toFixed(2)} days)`,
+  heading("Totals");
+  if (showDb) kv("db", dbPath);
+  kv("time zone", report.timeZone);
+  kv(
+    "window",
+    `${report.window.start} .. ${report.window.end} (${report.window.days.toFixed(2)} days)`,
   );
-  console.log(
-    `calls: ${group(t.calls)}  sessions: ${group(t.sessions)}  turns: ${group(t.turns)}  subagent sessions: ${group(t.subagentSessions)}`,
+  kv(
+    "calls",
+    `${group(t.calls)} calls, ${group(t.sessions)} sessions, ${group(t.turns)} turns, ${group(t.subagentSessions)} subagent sessions`,
   );
-  console.log(
-    `tokens: input ${group(t.inputTokens)} | priced output ${group(t.outputTokens)} (thinking ${group(t.thinkingTokens)}) | cache read ${group(t.cacheReadTokens)} | cache write ${group(t.cacheWriteTokens)} | total ${group(t.totalTokens)}`,
+  kv(
+    "tokens",
+    [
+      `input ${group(t.inputTokens)}`,
+      `priced output ${group(t.outputTokens)} (thinking ${group(t.thinkingTokens)})`,
+      `cache read ${group(t.cacheReadTokens)}`,
+      `cache write ${group(t.cacheWriteTokens)}`,
+      `total ${out.bold(group(t.totalTokens))}`,
+    ].join(sep()),
   );
-  console.log(
-    `costs: observed ${usd(t.observedUsd)} | estimated ${usd(t.estimatedUsd)} | unpriced calls ${group(t.unpricedCalls)} | headline ${usd(t.headlineUsd)}`,
+  kv(
+    "costs",
+    [
+      `observed ${usd(t.observedUsd)}`,
+      `estimated ${usd(t.estimatedUsd)}`,
+      `unpriced calls ${group(t.unpricedCalls)}`,
+      `headline ${out.bold(usd(t.headlineUsd))}`,
+    ].join(sep()),
   );
-  console.log(
-    `observed coverage: ${pct(t.observedCoverage)}  cache hit rate: ${pct(t.cacheHitRate)}  thinking share: ${pct(t.thinkingShare)}`,
+  kv(
+    "rates",
+    `observed coverage ${pct(t.observedCoverage)}  cache hit rate ${pct(t.cacheHitRate)}  thinking share ${pct(t.thinkingShare)}`,
   );
-  console.log(
-    `avg tokens/call: ${group(Math.round(t.avgTokensPerCall))}  avg cost/call: ${usd(t.avgCostPerCall)}`,
+  kv(
+    "averages",
+    `${group(Math.round(t.avgTokensPerCall))} tokens/call, ${usd(t.avgCostPerCall)} cost/call`,
   );
-  console.log(
-    `finding savings: fix ${usd(s.fix.windowUsd)} (monthly ${usd(s.fix.monthlyUsd)}) | try ${usd(s.try.windowUsd)} | all ${usd(s.all.windowUsd)} | tokens wasted ${group(Math.round(s.tokensWasted))}`,
+  kv(
+    "savings",
+    `fix ${usd(s.fix.windowUsd)} (monthly ${usd(s.fix.monthlyUsd)}) | try ${usd(s.try.windowUsd)} | all ${usd(s.all.windowUsd)} | tokens wasted ${group(Math.round(s.tokensWasted))}`,
   );
-  console.log(`spend basis: ${report.method}`);
+  kv("spend basis", report.method);
 }
 
-function printModels(report, dbPath) {
+function printModels(report, dbPath, showDb = true) {
+  heading("By model");
+  if (showDb) kv("db", dbPath);
   const head = [
     "model",
     "calls",
@@ -175,15 +222,27 @@ function printModels(report, dbPath) {
     pct(row.cacheHitRate),
     row.unpriced ? "yes" : "-",
   ]);
-  const widths = head.map((heading, i) =>
-    Math.max(heading.length, ...rows.map((cells) => cells[i].length)),
-  );
-  console.log(`db: ${dbPath}`);
-  console.log(head.map((heading, i) => pad(heading, widths[i])).join("  "));
-  for (const cells of rows) console.log(cells.map((cell, i) => pad(cell, widths[i])).join("  "));
+  table(head, rows, [
+    "left",
+    "right",
+    "right",
+    "right",
+    "right",
+    "right",
+    "right",
+    "right",
+    "right",
+    "right",
+    "right",
+    "right",
+    "right",
+    "right",
+  ]);
 }
 
-function printSessions(report, dbPath) {
+function printSessions(report, dbPath, showDb = true) {
+  heading("Sessions");
+  if (showDb) kv("db", dbPath);
   const head = [
     "session",
     "project",
@@ -208,24 +267,32 @@ function printSessions(report, dbPath) {
     usd(s.headlineUsd),
     pct(s.observedCoverage),
   ]);
-  const widths = head.map((heading, i) =>
-    Math.max(heading.length, ...rows.map((cells) => cells[i].length)),
-  );
-  console.log(`db: ${dbPath}`);
-  console.log(head.map((heading, i) => pad(heading, widths[i])).join("  "));
-  for (const cells of rows) console.log(cells.map((cell, i) => pad(cell, widths[i])).join("  "));
+  table(head, rows, [
+    "left",
+    "left",
+    "left",
+    "left",
+    "right",
+    "right",
+    "right",
+    "right",
+    "right",
+    "right",
+  ]);
 }
 
-function printCache(report, dbPath) {
+function printCache(report, dbPath, showDb = true) {
+  heading("Cache");
+  if (showDb) kv("db", dbPath);
   const c = report.cache;
-  console.log(`db: ${dbPath}`);
-  console.log(
-    `traffic: input ${group(c.inputTokens)} | read ${group(c.readTokens)} | write ${group(c.writeTokens)} (5m ${group(c.write5mTokens)}, 1h ${group(c.write1hTokens)})`,
+  kv(
+    "traffic",
+    `input ${group(c.inputTokens)} | read ${group(c.readTokens)} | write ${group(c.writeTokens)} (5m ${group(c.write5mTokens)}, 1h ${group(c.write1hTokens)})`,
   );
-  console.log(
-    `hit rate: ${pct(c.hitRate)}  writes recorded: ${c.writesRecorded ? "yes" : "no"}  share of estimate: ${pct(c.shareOfEstimate)}`,
-  );
-  console.log(`costs: read ${usd(c.estimatedReadUsd)} | write ${usd(c.estimatedWriteUsd)}`);
+  kv("hit rate", pct(c.hitRate));
+  kv("writes recorded", c.writesRecorded ? "yes" : "no");
+  kv("share of estimate", pct(c.shareOfEstimate));
+  kv("costs", `read ${usd(c.estimatedReadUsd)} | write ${usd(c.estimatedWriteUsd)}`);
   for (const [label, rows] of [
     ["by model", c.byModel],
     ["by provider", c.byProvider],
@@ -233,56 +300,85 @@ function printCache(report, dbPath) {
     ["by day", c.byDay],
   ]) {
     if (rows.length === 0) continue;
-    console.log(`${label}:`);
+    sub(`${label} (first ${Math.min(rows.length, 6)} of ${group(rows.length)})`);
     for (const row of rows.slice(0, 6)) {
-      console.log(
-        `  ${row.key}  calls=${group(row.calls)}  read=${group(row.readTokens)}  write=${group(row.writeTokens)}  hit=${pct(row.hitRate)}  hit change=${pct(row.hitRateChange)}  read ${usd(row.estimatedReadUsd)}  write ${usd(row.estimatedWriteUsd)}`,
+      kv(
+        row.key,
+        `calls=${group(row.calls)}  read=${group(row.readTokens)}  write=${group(row.writeTokens)}  hit=${pct(row.hitRate)}  hit change=${pct(row.hitRateChange)}  read ${usd(row.estimatedReadUsd)}  write ${usd(row.estimatedWriteUsd)}`,
       );
     }
   }
-  console.log("");
-  console.log(
-    `instruction prefixes: ${group(c.instructionContext.distinctPrefixHashes)} distinct across ${group(c.instructionContext.sessions)} sessions (${group(c.instructionContext.totalChars)} chars)`,
+  sub("instruction prefixes");
+  kv(
+    "distinct",
+    `${group(c.instructionContext.distinctPrefixHashes)} across ${group(c.instructionContext.sessions)} sessions (${group(c.instructionContext.totalChars)} chars)`,
   );
-  const shared = c.instructionContext.sharedPrefixes;
-  console.log(`shared prefixes (at least 2 sessions): ${shared.length}`);
-  for (const row of shared.slice(0, 6)) {
+  console.log(
+    `  ${out.dim("shared prefixes (at least 2 sessions):")} ${group(c.instructionContext.sharedPrefixes.length)}`,
+  );
+  for (const row of c.instructionContext.sharedPrefixes.slice(0, 6)) {
     console.log(
-      `  ${row.prefixHash.slice(0, 12)}  ${row.agent}  ${row.model}${row.variant === undefined ? "" : ` (${row.variant})`}  sessions=${group(row.sessions)}  calls=${group(row.calls)}  uncached in=${group(row.uncachedInputTokens)}`,
+      `    ${row.prefixHash.slice(0, 12)}  ${row.agent}  ${row.model}${row.variant === undefined ? "" : ` (${row.variant})`}  sessions=${group(row.sessions)}  calls=${group(row.calls)}  uncached in=${group(row.uncachedInputTokens)}`,
     );
   }
 }
 
-function printFindings(report, dbPath) {
+function printFindings(report, dbPath, showDb = true) {
+  heading("Findings");
+  if (showDb) kv("db", dbPath);
   const s = report.savings;
-  console.log(`db: ${dbPath}`);
-  console.log(
-    `recoverable: fix ${usd(s.fix.windowUsd)} (${group(s.fix.claimedCalls)} calls) | try ${usd(s.try.windowUsd)} (${group(s.try.claimedCalls)}) | test ${usd(s.test.windowUsd)} | all ${usd(s.all.windowUsd)}`,
+  kv(
+    "recoverable",
+    [
+      `fix ${usd(s.fix.windowUsd)} (${group(s.fix.claimedCalls)} calls)`,
+      `try ${usd(s.try.windowUsd)} (${group(s.try.claimedCalls)})`,
+      `test ${usd(s.test.windowUsd)}`,
+      `all ${usd(s.all.windowUsd)}`,
+    ].join(sep()),
   );
-  for (const finding of report.findings) {
-    console.log("");
-    console.log(`[tier:${finding.tier}] [${finding.rule}] ${finding.title}`);
-    console.log(
-      `  severity: ${finding.severity}  confidence: ${finding.savings.confidence}  verification: ${finding.verification}  advisory: ${finding.advisory ? "yes" : "no"}`,
-    );
-    console.log(`  detail: ${finding.detail}`);
-    console.log(`  why: ${finding.why}`);
-    console.log(
-      `  affected: ${finding.affected.calls} calls, models ${finding.affected.models.join(", ") || "none"}, share ${pct(finding.affected.share)}`,
-    );
-    console.log(
-      `  savings: window ${usd(finding.savings.windowUsd)} | monthly ${usd(finding.savings.monthlyUsd)} | annual ${usd(finding.savings.annualUsd)} | current ${usd(finding.savings.currentUsd)} | tokens ${group(Math.round(finding.savings.tokensWasted))}${finding.savings.unpriced ? " (unpriced: token-only)" : ""}`,
-    );
-    console.log(`  evidence: ${finding.savings.evidence.kind}: ${finding.savings.evidence.basis}`);
-    console.log(`  calculation: ${finding.savings.calculation}`);
-    for (const assumption of finding.savings.assumptions)
-      console.log(`  assumption: ${assumption}`);
-    console.log(`  fix: ${finding.fix}`);
-    if (finding.observations.length > 0) {
-      console.log(`  observations (${finding.observations.length}):`);
-      for (const observation of finding.observations.slice(0, 5)) console.log(`    ${observation}`);
+  report.findings.forEach((finding, index) => {
+    if (index > 0) {
+      console.log("");
+      hline();
     }
-  }
+    console.log("");
+    const tier = TIER_STYLES[finding.tier] ?? out.bold;
+    console.log(
+      `${tier(`[${finding.tier}]`)} ${out.bold(finding.title)}  ${out.dim(finding.rule)}`,
+    );
+    console.log(
+      `  ${out.dim("severity")} ${severityStyle(finding.severity)(finding.severity)}  ${out.dim("confidence")} ${finding.savings.confidence}  ${out.dim("verification")} ${finding.verification}  ${out.dim("advisory")} ${finding.advisory ? "yes" : "no"}`,
+    );
+    kv("detail", finding.detail);
+    kv("why", finding.why);
+    kv(
+      "affected",
+      `${finding.affected.calls} calls, models ${finding.affected.models.join(", ") || "none"}, share ${pct(finding.affected.share)}`,
+    );
+    kv(
+      "savings",
+      [
+        `window ${usd(finding.savings.windowUsd)}`,
+        `monthly ${usd(finding.savings.monthlyUsd)}`,
+        `annual ${usd(finding.savings.annualUsd)}`,
+        `current ${usd(finding.savings.currentUsd)}`,
+        `tokens ${group(Math.round(finding.savings.tokensWasted))}`,
+      ].join(sep()),
+    );
+    if (finding.savings.unpriced) {
+      console.log(`  ${out.yellow("unpriced: token-only")}`);
+    }
+    kv("evidence", `${finding.savings.evidence.kind}: ${finding.savings.evidence.basis}`);
+    kv("calculation", finding.savings.calculation);
+    for (const assumption of finding.savings.assumptions) kv("assumption", assumption);
+    kv("fix", finding.fix);
+    if (finding.observations.length > 0) {
+      kv("observations", `${finding.observations.length} (first 5 shown)`);
+      for (const observation of finding.observations.slice(0, 5)) {
+        console.log(`${LIST_INDENT}${observation}`);
+      }
+    }
+  });
 }
 
 function printEvents(priced, filter, label) {
@@ -292,80 +388,105 @@ function printEvents(priced, filter, label) {
     (attempt) =>
       attempt.usage === undefined && (filter === undefined ? true : filter(attempt.sessionId)),
   );
-  console.log(`${label}: ${group(events.length)}  failed attempts: ${group(failed.length)}`);
-  console.log("  events:");
-  for (const event of events) console.log(eventLine(event));
+  heading(label);
+  kv("events", `${group(events.length)} calls`);
+  kv("failed attempts", `${group(failed.length)} (no usage: never billed, never a free call)`);
+  sub("calls");
+  table(
+    ["id", "ts", "model", "in", "out", "think", "read", "write", "basis", "cost"],
+    events.map((event) => [
+      event.id,
+      event.ts,
+      event.model,
+      ...eventTokens(event),
+      event.cost.basis,
+      usd(event.cost.total),
+    ]),
+    ["left", "left", "left", "right", "right", "right", "right", "right", "left", "right"],
+  );
   if (failed.length > 0) {
-    console.log("  failed attempts (no usage: never billed, never a free call):");
-    for (const attempt of failed) console.log(failedLine(attempt));
+    sub("failed attempts (no usage)");
+    table(
+      ["id", "ts", "type"],
+      failed.map((attempt) => [
+        attempt.id,
+        attempt.ts,
+        `${attempt.errorType ?? "no usage"}${attempt.type === "compaction" ? " (compaction)" : ""}`,
+      ]),
+    );
   }
 }
 
 function printSessionReport(report, priced, id, dbPath) {
   const row = report.sessions.find((s) => s.id === id);
   if (row === undefined) {
-    console.error(`[analysis.unknown-session] no session with id ${id}`);
+    console.error(`${err.red(`[analysis.unknown-session]`)} no session with id ${id}`);
     process.exit(1);
   }
-  console.log(`db: ${dbPath}`);
-  console.log(
-    `session: ${row.id}  project: ${row.project}  agent: ${row.agents.join("+") || "-"}  subagent: ${row.isSubagent ? "yes" : "no"}${row.parentSessionId === undefined ? "" : `  parent: ${row.parentSessionId}`}`,
-  );
-  console.log(
-    `span: ${row.firstTs ?? "-"} .. ${row.lastTs ?? "-"}  calls: ${group(row.calls)}  turns: ${group(row.turns)}  compactions: ${group(row.compactions)}`,
-  );
-  console.log(
-    `tokens: ${tokensLine({
+  heading("Session");
+  kv("db", dbPath);
+  kv("session", row.id);
+  kv("project", row.project);
+  kv("agent", row.agents.join("+") || "-");
+  kv("subagent", row.isSubagent ? "yes" : "no");
+  if (row.parentSessionId !== undefined) kv("parent", row.parentSessionId);
+  kv("span", `${row.firstTs ?? "-"} .. ${row.lastTs ?? "-"}`);
+  kv("calls", group(row.calls));
+  kv("turns", group(row.turns));
+  kv("compactions", group(row.compactions));
+  kv(
+    "tokens",
+    tokensLine({
       inputTokens: row.inputTokens,
       outputTokens: row.outputTokens,
       thinkingTokens: row.thinkingTokens,
       cacheReadTokens: row.cacheReadTokens,
       cacheWriteTokens: row.cacheWriteTokens,
-    })}`,
+    }),
   );
-  console.log(
-    `cost: observed ${usd(row.observedUsd)} | estimated ${usd(row.estimatedUsd)} | headline ${usd(row.headlineUsd)}  cache hit ${pct(row.cacheHitRate)}  coverage ${pct(row.observedCoverage)}`,
+  kv(
+    "cost",
+    `observed ${usd(row.observedUsd)} | estimated ${usd(row.estimatedUsd)} | headline ${out.bold(usd(row.headlineUsd))}`,
   );
-  console.log("");
-  printEvents(priced, (sessionId) => sessionId === id, "session calls");
+  kv("rates", `cache hit ${pct(row.cacheHitRate)}, coverage ${pct(row.observedCoverage)}`);
+  printEvents(priced, (sessionId) => sessionId === id, "Session calls");
 }
 
 function printReportText(report, dbPath) {
-  console.log(
-    `db: ${dbPath}  time zone: ${report.timeZone}  pricing: ${report.pricingAsOf} v${report.pricingVersion}`,
-  );
-  console.log("");
-  printTotals(report, dbPath);
-  console.log("");
-  printModels(report, dbPath);
-  console.log("");
-  printSessions(report, dbPath);
-  console.log("");
-  console.log("cache:");
-  printCache(report, dbPath);
-  console.log("");
-  console.log("findings:");
-  printFindings(report, dbPath);
-  console.log("");
+  heading("Report");
+  kv("db", dbPath);
+  kv("time zone", report.timeZone);
+  kv("pricing", `${report.pricingAsOf} v${report.pricingVersion}`);
+  printTotals(report, dbPath, false);
+  printModels(report, dbPath, false);
+  printSessions(report, dbPath, false);
+  printCache(report, dbPath, false);
+  printFindings(report, dbPath, false);
   const h = report.dataHealth;
-  console.log(
-    `data health: schema ${h.schema} | source sessions ${h.sessions} | messages ${h.messages} | model calls ${h.modelCalls} (failed ${h.failedCalls}, compactions ${h.compactions}) | subagent sessions ${h.subagentSessions}`,
+  heading("Data health");
+  kv("schema", h.schema);
+  kv(
+    "sources",
+    `${group(h.sessions)} sessions, ${group(h.messages)} messages, ${group(h.modelCalls)} model calls (failed ${group(h.failedCalls)}, compactions ${group(h.compactions)}), ${group(h.subagentSessions)} subagent sessions`,
   );
-  console.log(
-    `reconciliation: ${h.reconciliation.checkedSessions} checked, ${h.reconciliation.mismatchSessions} mismatch, largest delta ${h.reconciliation.largestDelta} tokens`,
+  kv(
+    "reconciliation",
+    `${group(h.reconciliation.checkedSessions)} checked, ${h.reconciliation.mismatchSessions > 0 ? out.red(group(h.reconciliation.mismatchSessions)) : group(h.reconciliation.mismatchSessions)} mismatch, largest delta ${h.reconciliation.largestDelta} tokens`,
   );
-  console.log(
-    `instruction coverage: ${h.instruction.sessionsWithInstructions}/${h.instruction.sessions} sessions, ${h.instruction.callsWithPrefix}/${h.instruction.calls} calls`,
+  kv(
+    "instruction coverage",
+    `${h.instruction.sessionsWithInstructions}/${h.instruction.sessions} sessions, ${h.instruction.callsWithPrefix}/${h.instruction.calls} calls`,
   );
-  console.log(
-    `project label collisions: ${h.projectLabelCollisions.length} | unpriced models: ${h.unpricedModels.length} | detector errors: ${h.detectorErrors.length} | warnings: ${h.warnings.length}`,
-  );
+  kv("project label collisions", `${h.projectLabelCollisions.length}`);
+  kv("unpriced models", `${h.unpricedModels.length}`);
+  kv("detector errors", `${h.detectorErrors.length}`);
+  kv("warnings", `${h.warnings.length}`);
   for (const wrong of h.detectorErrors) {
-    console.error(`[analysis.detector-error] ${wrong.rule}: ${wrong.message}`);
+    console.error(`${err.red(`[analysis.detector-error]`)} ${wrong.rule}: ${wrong.message}`);
   }
   for (const collision of h.projectLabelCollisions) {
     console.error(
-      `[analysis.project-label-collision] '${collision.label}' maps to project ids: ${collision.projectIds.join(", ")}`,
+      `${err.red(`[analysis.project-label-collision]`)} '${collision.label}' maps to project ids: ${collision.projectIds.join(", ")}`,
     );
   }
 }
@@ -403,7 +524,7 @@ function privacyFailure(found, json) {
       JSON.stringify({ ok: false, error: { code: "source.privacy-violation", message } }, null, 2),
     );
   } else {
-    console.error(`[source.privacy-violation] ${message}`);
+    console.error(`${err.red(`[source.privacy-violation]`)} ${message}`);
   }
   process.exit(1);
 }
@@ -415,9 +536,11 @@ function printPrivacy(report, json, dbPath) {
     console.log(JSON.stringify({ ok: true, db: dbPath, bannedKeysFound: 0 }, null, 2));
     return;
   }
-  console.log(`db: ${dbPath}`);
-  console.log("privacy: ok");
-  console.log(
+  heading("Privacy check");
+  kv("db", dbPath);
+  kv("privacy", out.green("ok"));
+  kv(
+    "notes",
     "Banned keys (text, summary, content, state, output, prompt, oldString) are absent from the serialised report. Message bodies never enter it, and an edit carries only its Edit:<path>#<hash> signature.",
   );
 }
@@ -520,12 +643,12 @@ function jsonPayload(report, priced, mode, dbPath, zone, session) {
 
 function expectedFailure(error) {
   if (error instanceof MuninError) {
-    console.error(`[${error.code}] ${error.message}`);
+    console.error(`${err.red(`[${error.code}]`)} ${error.message}`);
     process.exit(1);
   }
   const code = error?.code;
   if (typeof code === "string") {
-    console.error(`[${code}] ${error.message}`);
+    console.error(`${err.red(`[${code}]`)} ${error.message}`);
     process.exit(1);
   }
   console.error(String(error instanceof Error ? error.message : error));
@@ -538,7 +661,7 @@ function main() {
     args = parseArgs(process.argv.slice(2));
   } catch (error) {
     printUsage();
-    console.error(`error: ${error.message}`);
+    console.error(`${err.red("error:")} ${error.message}`);
     process.exit(64);
   }
 
@@ -546,7 +669,7 @@ function main() {
   const config = loadConfig(options);
 
   if (!existsSync(config.dbPath)) {
-    console.error(`[source.missing-db] Database not found: ${config.dbPath}`);
+    console.error(`${err.red(`[source.missing-db]`)} Database not found: ${config.dbPath}`);
     process.exit(1);
   }
 
@@ -557,7 +680,7 @@ function main() {
     dataset = readDataset(options);
     warningLines(dataset.warnings);
     if (dataset.warnings.some((warning) => warning.code === "source.missing-db")) {
-      console.error(`[source.missing-db] Database not found: ${config.dbPath}`);
+      console.error(`${err.red(`[source.missing-db]`)} Database not found: ${config.dbPath}`);
       process.exit(1);
     }
     priced = buildEvents(dataset);
