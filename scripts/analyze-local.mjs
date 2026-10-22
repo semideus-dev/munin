@@ -10,6 +10,7 @@ import { dirname } from "node:path";
 import { loadConfig, readDataset } from "@munin/local";
 import {
   acceptRisk,
+  BANNED_KEYS,
   buildEvents,
   buildReport,
   MuninError,
@@ -31,19 +32,6 @@ import {
   table,
   usd,
 } from "./lib/output.mjs";
-
-const BANNED_KEYS = new Set([
-  // Message bodies, prompt text, and stored blobs. Titles, paths, hashes,
-  // signatures, and counts are allowed; an edit's old text must never appear
-  // in the serialised output, only its hash in the `Edit:` signature.
-  "text",
-  "summary",
-  "content",
-  "state",
-  "output",
-  "prompt",
-  "oldString",
-]);
 
 const ALLOWED_OUTPUT_PATHS = new Set([
   "$.messages[].usage.tokens.output",

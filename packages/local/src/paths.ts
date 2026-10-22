@@ -15,9 +15,11 @@ export interface LedgerPaths {
   root: string;
   events: string;
   snapshots: string;
+  cursors: string;
   changes: string;
   decisions: string;
   verifications: string;
+  scanLock: string;
 }
 
 export interface MuninPaths {
@@ -98,9 +100,11 @@ export function resolvePlatformPaths(input: PlatformPathsInput): MuninPaths {
       root: stateDir,
       events: impl.join(stateDir, "events.jsonl"),
       snapshots: impl.join(stateDir, "snapshots.jsonl"),
+      cursors: impl.join(stateDir, "cursors.json"),
       changes: impl.join(stateDir, "changes.jsonl"),
       decisions: impl.join(stateDir, "decisions.json"),
       verifications: impl.join(stateDir, "verifications.json"),
+      scanLock: impl.join(stateDir, "scan.lock"),
     },
     defaultDbPath: impl.join(dataHome, "opencode", "opencode.db"),
     ...(envDb === undefined ? {} : { envDbPath: rooted(envDb, impl) }),

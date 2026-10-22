@@ -12,6 +12,8 @@ export interface ReadV2RowsOptions {
   sinceDays?: number;
   limit?: number;
   offset?: number;
+  watermarkMs?: number;
+  overlapMs?: number;
 }
 
 export interface ReadV2RowsResult {
@@ -43,6 +45,18 @@ function buildSessionSelection(options: ReadV2RowsOptions): {
     const cutoffMs = Date.now() - Math.floor(options.sinceDays * 86_400_000);
     conditions.push("s.time_updated >= :cutoffMs");
     params.cutoffMs = cutoffMs;
+  }
+
+  if (options.watermarkMs !== undefined) {
+    if (!Number.isFinite(options.watermarkMs) || options.watermarkMs < 0) {
+      throw new TypeError("watermarkMs must be a non-negative finite number");
+    }
+    const overlapMs = options.overlapMs ?? 30_000;
+    if (!Number.isFinite(overlapMs) || overlapMs < 0) {
+      throw new TypeError("overlapMs must be a non-negative finite number");
+    }
+    conditions.push("s.time_updated >= :watermarkCutoffMs");
+    params.watermarkCutoffMs = Math.max(0, options.watermarkMs - overlapMs);
   }
 
   return {

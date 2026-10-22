@@ -414,8 +414,16 @@ partial records
 
 ### Phase 5 summary
 
-Optimaizr maintains local analysis state, refreshes reports and compares
-results over time.
+Munin maintains local analysis state, incrementally refreshes reports, compares
+snapshots and measures before/after cost per turn or call from the apply
+journal. The scan harness supports watch mode, full reconciliation/repair and
+privacy checks. Results comparisons remain generic because the current rules
+have no Munin-owned apply mapping.
+
+**Status:** Implementation complete; the manual exit check against a disposable
+copy of the local OpenCode database (new-session discovery and restart resume)
+is still pending. The integration tests cover the same behavior with SQLite
+fixtures, but Phase 5 is not marked complete until the manual check is run.
 
 **Exit criterion:** A new OpenCode session is discovered without a
 restart, and repeated scans do not double-count usage.
@@ -462,12 +470,12 @@ actions
 formatting reports
 
 `guard` (OpenCode plugin) 4/5 Holds a costly tool
-  action once;
-  `guard list`
+action once;
+`guard list`
 
 `statusline` (CLI plugin) 3/5 Cost/token line in
-  OpenCode's TUI
-  footer
+OpenCode's TUI
+footer
 -------------------------------------------------------------------------
 
 ### Guard and statusline findings (researched 2026-10-23)

@@ -19,6 +19,7 @@
     "test": "node --test",
     "reader": "npm run build && node scripts/read-local.mjs",
     "analyze": "npm run build && node scripts/analyze-local.mjs",
+    "scan": "npm run build && node scripts/scan-local.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

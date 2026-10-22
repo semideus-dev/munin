@@ -1,13 +1,13 @@
 # Phase 5 plan: local ledger, incremental scanning, live monitoring, snapshots and results comparison
 
-Status: planned (not started)
+Status: implementation complete; manual exit verification pending
 Owner: team
 Scope: turn the batch analyze pipeline into a local runtime: a file-backed
 ledger of derived state under the state directory, watermarked incremental
 scanning of the OpenCode database, a polling watch loop that discovers new
 sessions without a restart, snapshot capture with trend comparison, the
-change-driven results comparison ported from the reference, privacy controls
-over what the ledger persists, and error recovery for locks, torn records,
+change-driven results comparison adapted to Munin's apply journal, privacy
+controls over what the ledger persists, and error recovery for locks, torn records,
 missing source and truncation. No CLI product commands and no dashboard:
 those are Phases 6-7; the harness scripts are the manual surface in this
 phase.
@@ -22,7 +22,7 @@ numbers never change because a scan ran twice.
 
 The runtime pieces mirror the reference's split, adapted to Munin's source
 model (the reference instruments SDK traffic into a ledger; Munin reads the
-OpenCode database directly and stores *derived* state):
+OpenCode database directly and stores _derived_ state):
 
 1. **Ledger** (reference `packages/local/src/ledger.ts`): append-only JSONL
    state under the state directory, best-effort from the writer's point of
@@ -40,7 +40,7 @@ OpenCode database directly and stores *derived* state):
    incremental scan and renders the refreshed report. Cursors persist
    across restarts - a deliberate deviation from the reference, which keeps
    high-water marks in memory only, because Munin's exit criterion
-   (discover new sessions without a restart after a *restart*, too) needs
+   (discover new sessions without a restart after a _restart_, too) needs
    it.
 4. **Snapshots and comparison** (reference `analyze/results.ts` +
    `changes.ts`): each completed scan appends one summary snapshot; two
@@ -112,7 +112,7 @@ OpenCode database directly and stores *derived* state):
 ## Scope decisions
 
 - **The ledger stores derived state only.** One `events.jsonl` line per
-  *session slice*: the priced `UsageEvent[]` for that session as captured
+  _session slice_: the priced `UsageEvent[]` for that session as captured
   at scan time, with the scan's watermark and schema mix. This deviates
   from the reference (one event per line, fed live) because Munin's source
   is read from SQLite; the invariant that matters is preserved - stable
@@ -130,7 +130,7 @@ OpenCode database directly and stores *derived* state):
 - **Incremental math replaces, never sums.** A re-read session's slice
   replaces the previous one (last slice per session id wins at read
   time), so a resumed or edited session is re-priced from scratch. This
-  is the whole idempotency story; there is no incremental *arithmetic* to
+  is the whole idempotency story; there is no incremental _arithmetic_ to
   get wrong.
 - **One report builder path.** The ledger rebuild (`buildLedgerReport`)
   reuses the Phase 3 aggregation, cache, session and detector pieces on
@@ -198,21 +198,21 @@ results comparison = changes.jsonl -> measureResults (ported)
 
 ## Deliverables
 
-| Deliverable | Where | Proof |
-| ----------------------------------------------- | ----------------------------------------- | ---------------------------- |
-| Snapshot / cursor / slice contracts + validation | `core/src/domain/ledger.ts`, `core/src/ledger/*.ts` | `tests/unit/ledger-schemas.test.mjs` |
-| Priced-event slice serialization + privacy gate | `core/src/ledger/slices.ts` | `tests/unit/ledger-slices.test.mjs` |
-| Watermark cursors (atomic read/write, freshness rule) | `packages/local/src/cursors.ts` | `tests/unit/cursors-local.test.mjs` |
-| Incremental V1 / V2 / mixed reads on watermark | `packages/local/src/readers/*` (extended) | `tests/unit/readers-incremental.test.mjs` |
-| Append-only slice journal + dedup at read + torn-line tolerance | `packages/local/src/ledger.ts` | `tests/unit/ledger-local.test.mjs` |
-| Ledger report rebuild on merged events | `core/src/report/ledger-report.ts` | `tests/unit/ledger-report.test.mjs` + equivalence pin |
-| Scan orchestration, snapshot append, reconcile, repair | `scripts/scan-local.mjs` (+ pure pipeline in core/local) | `npm run scan --` |
-| Watch loop without restart | `scripts/scan-local.mjs --watch` | manual check below |
-| Trend comparison of two snapshots | `core/src/analyze/snapshot-diff.ts` | `tests/unit/snapshot-diff.test.mjs` |
-| Results comparison port (verdicts, baselines, days) | `core/src/analyze/results.ts` | `tests/unit/results.test.mjs` |
-| Privacy controls over ledger writes | scan harness + `docs/ledger.md` | `npm run scan -- --check-privacy` |
-| Error recovery: lock, torn lines, missing DB, truncation | `core` + `local` (tested) | `tests/unit/scan-errors.test.mjs` |
-| Documentation + exit review | `docs/ledger.md`, plans README, project.md | exit checklist |
+| Deliverable                                                     | Where                                                    | Proof                                                 |
+| --------------------------------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------- |
+| Snapshot / cursor / slice contracts + validation                | `core/src/domain/ledger.ts`, `core/src/ledger/*.ts`      | `tests/unit/ledger-schemas.test.mjs`                  |
+| Priced-event slice serialization + privacy gate                 | `core/src/ledger/slices.ts`                              | `tests/unit/ledger-slices.test.mjs`                   |
+| Watermark cursors (atomic read/write, freshness rule)           | `packages/local/src/cursors.ts`                          | `tests/unit/cursors-local.test.mjs`                   |
+| Incremental V1 / V2 / mixed reads on watermark                  | `packages/local/src/readers/*` (extended)                | `tests/unit/readers-incremental.test.mjs`             |
+| Append-only slice journal + dedup at read + torn-line tolerance | `packages/local/src/ledger.ts`                           | `tests/unit/ledger-local.test.mjs`                    |
+| Ledger report rebuild on merged events                          | `core/src/report/ledger-report.ts`                       | `tests/unit/ledger-report.test.mjs` + equivalence pin |
+| Scan orchestration, snapshot append, reconcile, repair          | `scripts/scan-local.mjs` (+ pure pipeline in core/local) | `npm run scan --`                                     |
+| Watch loop without restart                                      | `scripts/scan-local.mjs --watch`                         | manual check below                                    |
+| Trend comparison of two snapshots                               | `core/src/analyze/snapshot-diff.ts`                      | `tests/unit/snapshot-diff.test.mjs`                   |
+| Results comparison port (verdicts, baselines, days)             | `core/src/analyze/results.ts`                            | `tests/unit/results.test.mjs`                         |
+| Privacy controls over ledger writes                             | scan harness + `docs/ledger.md`                          | `npm run scan -- --check-privacy`                     |
+| Error recovery: lock, torn lines, missing DB, truncation        | `core` + `local` (tested)                                | `tests/unit/scan-errors.test.mjs`                     |
+| Documentation + exit review                                     | `docs/ledger.md`, plans README, project.md               | exit checklist                                        |
 
 ## Steps
 
@@ -274,7 +274,7 @@ error; `grep -rn "node:fs\|process.env" packages/core/src` stays empty.
    breaks the lock with a warning. Writer failure at any point releases
    or leaves a stale lock for the next run to recover.
 4. All stores stay keyed by injected paths; nothing in `packages/local`
-  invents a second location.
+   invents a second location.
 
 Manual check: `node --test tests/unit/ledger-local.test.mjs
 tests/unit/cursors-local.test.mjs tests/unit/lock-local.test.mjs`; then
@@ -426,7 +426,23 @@ watch-mode check stops the cycle before the cursor advances.
 2. Update `docs/parity-matrix.md` rows for ledger/live/results (ported,
    partial, excluded with reasons).
 3. `docs/plans/README.md` + this file's status + `docs/project.md`
-   Phase 5 status once the exit checklist is fully green.
+   Phase 5 status from the evidence actually completed; do not mark the phase
+   complete while its live OpenCode discovery check remains unverified.
+
+#### Step 8 execution record
+
+- `docs/ledger.md` documents the runtime files, privacy boundary, retention,
+  refresh behavior, watermarking and repair process.
+- `docs/parity-matrix.md`, this plan, `docs/plans/README.md` and
+  `docs/project.md` reflect the implemented scope and remaining acceptance
+  check.
+- `npm test` passes 126 tests. `npm run scan -- --help` lists the scan,
+  watch, snapshots, results and privacy flags.
+- The integration tests exercise scanning, repair, watcher polling and cursor
+  resume against SQLite fixtures. The real local OpenCode database was not
+  modified or used for the manual live-insert/restart check. That manual exit
+  criterion remains pending, so Phase 5 is implemented but not yet marked
+  complete.
 
 Manual check: from a clean shell, `npm run scan -- --help` (or the
 script's usage) names every flag used above; the plans README lists
@@ -447,7 +463,7 @@ npm run analyze -- --report --json | sha256sum   # or shasum on macOS
 npm run analyze -- --report --json | sha256sum
 ```
 
-Two identical digests; 105+ tests green; the snapshot DB's mtime and size
+Two identical digests; 126 tests green; the source DB's mtime and size are
 unchanged after both runs.
 
 ### 2. First scan lays down the ledger
@@ -458,9 +474,9 @@ ls $HOME/.munin
 ```
 
 Expect `events.jsonl`, `snapshots.jsonl`, `cursors.json`, plus the
-existing state files. Totals in the scan summary equal
-`npm run analyze -- --totals` on the same window and DB, to the last
-digit.
+existing state files. The scan's call count and cost, and each listed
+session's token total, match `npm run analyze -- --totals` and
+`npm run analyze -- --sessions` on the same window and DB.
 
 ### 3. Repeated scans are idempotent
 
@@ -469,18 +485,38 @@ npm run scan --        # second run
 npm run scan --        # third run
 ```
 
-Each prints `sessions read: 0`, `slices replaced: 0`, identical totals;
-each appends exactly one snapshot row; cursor unchanged after the first
-advance. `node -e` (or manual read) of `snapshots.jsonl` shows the same
-totals on every row.
+The 30-second overlap can re-read a recently updated session. The important
+invariants are unchanged totals and tracked event counts, one snapshot appended
+per successful scan, no duplicate usage, and non-decreasing per-schema
+watermarks. The cursor's `at` timestamp is updated on each successful scan.
+Inspect `snapshots.jsonl` to confirm identical totals when the source has not
+changed.
 
 ### 4. A new session is discovered without a restart
 
 ```bash
-cp "$(sqlite3 ~/.../opencode.db 'SELECT 1' >/dev/null && echo path)" /tmp/munin-watch.db
-npm run scan -- --watch --db /tmp/munin-watch.db
-# in another shell:
-sqlite3 /tmp/munin-watch.db "INSERT INTO session_v2 ... (new id, fresh time_updated)"
+DB=/absolute/path/to/opencode.db
+sqlite3 "$DB" ".backup '/tmp/munin-watch.db'"
+npm run scan -- --watch --db /tmp/munin-watch.db --state-dir /tmp/munin-watch-state
+```
+
+For a V2 test copy with at least one session, insert a session and copy its
+messages in a second shell. This SQL uses only the disposable copy:
+
+```bash
+BASE=$(sqlite3 /tmp/munin-watch.db 'SELECT id FROM session_v2 LIMIT 1')
+ID=munin-watch-check-1
+NOW=$(node -p 'Date.now()')
+sqlite3 /tmp/munin-watch.db "
+INSERT INTO session_v2 (id, project_id, parent_id, title, directory, agent, model, cost,
+  tokens_input, tokens_output, tokens_reasoning, tokens_cache_read, tokens_cache_write,
+  time_created, time_updated)
+SELECT '$ID', project_id, NULL, 'Munin watch check', directory, agent, model, cost,
+  tokens_input, tokens_output, tokens_reasoning, tokens_cache_read, tokens_cache_write,
+  $NOW, $NOW FROM session_v2 WHERE id = '$BASE';
+INSERT INTO session_message (id, session_id, type, seq, time_created, time_updated, data)
+SELECT '$ID:' || id, '$ID', type, seq, time_created, time_updated, data
+FROM session_message WHERE session_id = '$BASE';"
 ```
 
 Within one interval the render lists the new session and the totals move
@@ -493,7 +529,7 @@ criterion.
 
 ```bash
 npm run analyze -- --totals --db /tmp/munin-watch.db
-npm run scan -- --full --db /tmp/munin-watch.db   # reconcile mode
+npm run scan -- --full --db /tmp/munin-watch.db --state-dir /tmp/munin-watch-state
 ```
 
 One reconciliation table; every session's stored vs fresh events match;
@@ -502,8 +538,10 @@ without the explicit flag.
 
 ### 6. Incremental reads touch less data
 
-Start a watcher with `--debug-sql` (or check the SQLite `page`/hit
-counts if instrumented - record access counts in the execution notes).
+Start a watcher with `npm run scan -- --watch --db /tmp/munin-watch.db
+--state-dir /tmp/munin-watch-state` (the harness does not currently expose a
+`--debug-sql` flag). Check the reader's watermark query against the selected
+session IDs in SQLite.
 While running, touch one session (bump its `time_updated`): only that
 session's rows are re-read; totals for every other model/session are
 unchanged to the last digit.
@@ -520,16 +558,24 @@ unchanged to the last digit.
 ### 8. Results comparison behaves with the vocabulary it promises
 
 Fixture journal with one apply + one undo: periods build correctly
-(`from`/`until`), the verdict is one of `working`/`no-change`/`worse`
-depending on the fixture, baselines shorter than 14 days or older than
-30 produce `too-early`/`no-baseline`. On the real state dir the report
-is the explicit "no applied changes on record" verdict.
+(`from`/`until`), and fixtures cover `too-early`, `no-baseline`, `working`,
+`no-change`, `worse`, and baseline sensitivity. On a state directory with an
+empty apply journal, `npm run scan -- --results` prints the explicit "No
+applied changes on record" message.
 
 ### 9. Snapshot trends
 
-Two scans over two DB snapshots (different times in history via
-`--db` + `--days`): `--snapshots` prints both rows and the diff (added
-session counts, findings that grew). Fixture test pins the diff shape.
+Run two full scans over disposable database copies using the same state
+directory, then list the saved snapshots and latest diff:
+
+```bash
+npm run scan -- --full --repair --db /tmp/munin-before.db --state-dir /tmp/munin-trend-state
+npm run scan -- --full --repair --db /tmp/munin-after.db --state-dir /tmp/munin-trend-state
+npm run scan -- --snapshots --state-dir /tmp/munin-trend-state
+```
+
+The output includes session/model totals and finding changes. There is no
+`--days` flag on the scan harness.
 
 ### 10. Nothing new reads or writes source history, and no prompt text lands anywhere
 
@@ -537,17 +583,18 @@ session counts, findings that grew). Fixture test pins the diff shape.
 grep -rn "node:fs\|process.env" packages/core/src          # still empty
 npm run scan -- --check-privacy
 # and, for the paranoid:
-grep -rnE '"(text|prompt|summary|content|output)"' $HOME/.munin/events.jsonl $HOME/.munin/snapshots.jsonl
+grep -rnE '"(text|prompt|summary|content|oldString)"[[:space:]]*:' "$HOME/.munin/events.jsonl" "$HOME/.munin/snapshots.jsonl"
 ```
 
-The grep finds nothing; `--check-privacy` exits 0; the analyze
-cleanliness check (source mtime/size unchanged) passes after a full
-watch cycle.
+The grep finds no banned field names; `cost.output` is an approved numeric
+field. `--check-privacy` exits 0, and the source DB copy's mtime/size is
+unchanged after the scan.
 
 ## Out of scope for this plan
 
 - CLI product commands (`live`, `results`, `sessions`, `watch`) - Phase 6
-  wires the same library seam; the harness flags are the manual surface.
+  wires the same library seam; `npm run scan` flags are this phase's manual
+  surface.
 - The dashboard and its live refresh - Phase 7.
 - Jev-style remote judging, samples.jsonl capture, meter reading,
   notify/osascript - reference only, Claude/plan-specific or

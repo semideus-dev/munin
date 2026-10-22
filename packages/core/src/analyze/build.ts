@@ -144,6 +144,11 @@ function compareEvents(a: UsageEvent, b: UsageEvent): number {
   return a.id.localeCompare(b.id);
 }
 
+/** Stable source ordering shared by batch and ledger report builds. */
+export function sortUsageEvents(events: readonly UsageEvent[]): UsageEvent[] {
+  return [...events].sort(compareEvents);
+}
+
 function compareAttempts(a: CallAttempt, b: CallAttempt): number {
   if (a.ts !== b.ts) return a.ts.localeCompare(b.ts);
   if (a.sessionId !== b.sessionId) return a.sessionId.localeCompare(b.sessionId);

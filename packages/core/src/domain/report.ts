@@ -174,6 +174,13 @@ export interface DataHealth {
   /** Detectors that threw. Findings behind a failed detector are absent. */
   detectorErrors: AnalysisError[];
   instruction: InstructionHealth;
+  /** Present for a report rebuilt from Munin's derived ledger. */
+  ledger?: {
+    skippedLines: number;
+    slicesReplaced: number;
+    sessionsTracked: number;
+    eventsTracked: number;
+  };
 }
 
 export interface MuninReport {

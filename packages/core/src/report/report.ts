@@ -19,9 +19,11 @@ import type {
   TierSavings,
   UnpricedModelHealth,
 } from "../domain/report.js";
+import type { PricedDataset } from "../domain/analysis.js";
+import type { Dataset, SourceSchema, SourceWarning } from "../domain/source.js";
 import type { Finding, FindingTier } from "../domain/finding.js";
 import type { UsageEvent } from "../domain/usage.js";
-import { buildEvents } from "../analyze/build.js";
+import { buildEvents, sortUsageEvents, windowOf } from "../analyze/build.js";
 import { cacheStats } from "../analyze/cache.js";
 import { detectFindings, recoverableByEvent } from "../analyze/findings.js";
 import { buildRecommendations } from "../analyze/recommend.js";
@@ -199,12 +201,53 @@ function reconciliationOf(
  * priced, aggregated and screened inside. Pure: same input, byte-identical
  * output.
  */
-export function buildReport(
-  dataset: Parameters<typeof buildEvents>[0],
-  options: BuildReportOptions = {},
+export function buildReport(dataset: Dataset, options: BuildReportOptions = {}): MuninReport {
+  return buildReportFromPriced(dataset, buildEvents(dataset), options);
+}
+
+export interface BuildLedgerReportOptions extends BuildReportOptions {
+  sourcePath: string;
+  sourceSchema: SourceSchema;
+  sessionsTracked: number;
+  warnings?: SourceWarning[];
+  ledger: {
+    skippedLines: number;
+    slicesReplaced: number;
+    eventsTracked: number;
+  };
+}
+
+/** Rebuild the shared report over priced ledger events without repricing them. */
+export function buildLedgerReport(
+  events: UsageEvent[],
+  options: BuildLedgerReportOptions,
+): MuninReport {
+  const warnings = options.warnings ?? [];
+  const sortedEvents = sortUsageEvents(events);
+  const dataset: Dataset = {
+    schema: options.sourceSchema,
+    sessions: [],
+    messages: [],
+    warnings,
+    sources: [options.sourcePath],
+  };
+  const priced: PricedDataset = {
+    schema: options.sourceSchema,
+    events: sortedEvents,
+    attempts: [],
+    window: windowOf(sortedEvents),
+    warnings,
+  };
+  return buildReportFromPriced(dataset, priced, options, options);
+}
+
+function buildReportFromPriced(
+  dataset: Dataset,
+  priced: PricedDataset,
+  options: BuildReportOptions,
+  ledger?: BuildLedgerReportOptions,
 ): MuninReport {
   const zone = options.zone ?? "UTC";
-  const priced = buildEvents(dataset);
   const events = priced.events;
   const windowDays = priced.window.days;
   const pace = projectionDays(events);
@@ -236,16 +279,17 @@ export function buildReport(
     priced.warnings.length === 0 &&
     reconciliation.mismatchSessions === 0 &&
     projectLabelCollisions.length === 0 &&
-    detection.errors.length === 0;
+    detection.errors.length === 0 &&
+    (ledger?.ledger.skippedLines ?? 0) === 0;
 
   const dataHealth: DataHealth = {
     clean,
     schema: dataset.schema,
     sources: [...dataset.sources].sort(asc),
-    sessions: dataset.sessions.length,
+    sessions: ledger?.sessionsTracked ?? dataset.sessions.length,
     subagentSessions: summary.totals.subagentSessions,
-    messages: dataset.messages.length,
-    modelCalls: priced.attempts.length,
+    messages: ledger === undefined ? dataset.messages.length : 0,
+    modelCalls: ledger === undefined ? priced.attempts.length : events.length,
     failedCalls: priced.attempts.filter((attempt) => attempt.usage === undefined).length,
     compactions: priced.attempts.filter((attempt) => attempt.type === "compaction").length,
     warnings: priced.warnings,
@@ -260,6 +304,16 @@ export function buildReport(
       calls: events.length,
       callsWithPrefix: withPrefix,
     },
+    ...(ledger === undefined
+      ? {}
+      : {
+          ledger: {
+            skippedLines: ledger.ledger.skippedLines,
+            slicesReplaced: ledger.ledger.slicesReplaced,
+            sessionsTracked: ledger.sessionsTracked,
+            eventsTracked: ledger.ledger.eventsTracked,
+          },
+        }),
   };
 
   return {

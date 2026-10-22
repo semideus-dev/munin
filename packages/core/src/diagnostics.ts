@@ -53,6 +53,7 @@ export const WARNING_CODES = {
   sourceNoSchema: "source.no-schema",
   sourceEmpty: "source.empty",
   sourceMixedSchema: "source.mixed-schema",
+  sourceSchemaChanged: "source.schema-changed",
   sourceInvalidJson: "source.invalid-json",
   sourceUnknownType: "source.unknown-type",
   sourceUnknownModel: "source.unknown-model",

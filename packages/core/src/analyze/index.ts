@@ -11,5 +11,7 @@ export * from "./rules/replay.js";
 export * from "./projection.js";
 export * from "./sessions.js";
 export * from "./summary.js";
+export * from "./snapshot-diff.js";
+export * from "./results.js";
 export * from "./turns.js";
 export * from "./verification.js";
