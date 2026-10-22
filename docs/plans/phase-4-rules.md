@@ -1,6 +1,7 @@
 # Phase 4 plan: optimization rules and actionable recommendations
 
-Status: in progress (implementation Steps 0-9 recorded; exit review still open)
+Status: complete (implementation Steps 0-9 recorded; exit review closed on
+2026-10-23 with the reference-parity audit of the 15 ported detectors)
 Owner: team
 Scope: turn the two Phase 3 detectors into a named rule engine with rule
 metadata and confidence conventions, add the recommendation layer with

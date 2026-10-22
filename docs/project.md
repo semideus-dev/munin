@@ -16,7 +16,8 @@ backend/database stack.
   ingestion, analysis, optimization rules, reports, live monitoring,
   ledger, replay/verification, apply/undo, and generic configuration.
 - **Exclude:** `mods/optimaizr` and Claude-specific hooks, statusline
-  integrations, and plugin setup.
+  integrations, and plugin setup. The non-Claude equivalents (OpenCode
+  server guard and terminal statusline plugins) are planned under Phase 6.
 - **Add:** an interactive local dashboard and OpenCode 2.x support.
 - **Preserve:** OpenCode 1.x compatibility and the original shared
   engine behavior.
@@ -357,11 +358,12 @@ Verification distinguishes measured results from estimates.
 **Exit criterion:** Rules are independently tested, unsupported actions
 fail clearly, and apply/undo does not silently corrupt configuration.
 
-Status: in progress on 2026-10-23. Registry, recommendation/decision state,
+Status: complete on 2026-10-23. Registry, recommendation/decision state,
 verification, apply/undo seams, replay abstractions, tests, and Step 9 docs are
-implemented. Phase 4 is not marked complete: exact reference parity for the 15
-additional detector implementations remains unaudited, and no current rule
-maps to an applicable Munin-owned optimization setting.
+implemented, and the reference-parity audit of the 15 ported detectors passed.
+No current rule maps to an applicable Munin-owned optimization setting, so the
+apply-success seam remains test-only while external-agent actions queue
+(documented in `docs/rules-unsupported.md`).
 
 ---
 
@@ -418,6 +420,10 @@ results over time.
 **Exit criterion:** A new OpenCode session is discovered without a
 restart, and repeated scans do not double-count usage.
 
+Plan: `docs/plans/phase-5-runtime.md` (local ledger, incremental
+scanning with watermark cursors, watch loop, snapshots and trends,
+results comparison port, privacy checks, error recovery).
+
 ---
 
 ## Phase 6 --- CLI and commands
@@ -455,10 +461,50 @@ actions
 `card` and output 2/5 Compact readable
 formatting reports
 
-`guard`/`statusline` Excluded/conditional Only non-Claude
-equivalent if
-meaningful
+`guard` (OpenCode plugin) 4/5 Holds a costly tool
+  action once;
+  `guard list`
+
+`statusline` (CLI plugin) 3/5 Cost/token line in
+  OpenCode's TUI
+  footer
 -------------------------------------------------------------------------
+
+### Guard and statusline findings (researched 2026-10-23)
+
+Feasibility is confirmed against OpenCode 2.x documentation, with one open
+question. Both features ship as one npm plugin package with two entries:
+the server plugin listed in `opencode.json(c)` `plugins`, and the
+terminal plugin (`./tui` export) listed in `cli.json` `plugins`.
+`munin guard on|off` and `munin statusline on|off` edit those config
+files the same way the reference installs Claude Code hooks, and
+receipts and state live under `MUNIN_DIR`.
+
+- **Guard** runs in the OpenCode server. Its holds use the permission
+  `evaluate` hook: guard changes an `allow` decision to `ask` with a cost
+  message, and OpenCode's own prompt provides the "allow once, then go
+  through" flow. Explicit user `deny` rules stay final. Failed tool calls
+  are recorded with `tool.execute.after` plus plugin storage, which
+  replaces the reference's `marks.json`.
+- **First cut catches tool actions only:** whole-file reads over the
+  size threshold and a third identical failing shell command. The
+  cold-cache message hold is the one unverified piece: OpenCode's
+  session prompt hook has no typed rejection, so a one-hour spike must
+  check whether throwing in the hook aborts admission cleanly. If it
+  does not, guard v1 warns through live and statusline instead of
+  holding.
+- **Statusline** renders in an OpenCode TUI slot (`prompt.footer.status`
+  for the first cut) and reads session data from the plugin's reactive
+  client APIs, not by polling the database. It can show: session context
+  size and re-read cost, cache countdown, this-turn cost, duration and
+  request count, cheaper-model hint, a user-configured budget percentage
+  (not the Claude 5-hour window), and guard status. Token counts in
+  client data need verification; the fallback is a usage recorder in the
+  same package's server entry.
+- **`live` is unchanged:** a standalone TUI polling the OpenCode
+  database (the same DB-cursor design as the parity matrix). No plugin.
+  The split is: statusline inside the session you type in, live across
+  all open conversations.
 
 ### Implementation steps
 
