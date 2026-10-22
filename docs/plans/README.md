@@ -7,3 +7,4 @@ Working plans for phased work. Project intent lives in [`../project.md`](../proj
 - [Phase 3 analysis](./phase-3-analysis.md) - pricing, priced events, aggregates, cache analysis, repeated-work detectors, structured report (complete)
 - [Phase 4 rules](./phase-4-rules.md) - named rule registry, recommendations, verification, apply/undo, replay abstractions (complete)
 - [Phase 5 runtime](./phase-5-runtime.md) - implementation complete; manual live OpenCode discovery/restart exit verification pending
+- [Phase 6 CLI](./phase-6-cli.md) - planned: product command table, scan/live promotion, apply/undo/results/verify, OpenCode guard/statusline plugin
