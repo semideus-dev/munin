@@ -1,0 +1,178 @@
+/**
+ * Anthropic cards, ported from the reference catalogue read 2026-10-19.
+ *
+ * Do not silently freshen these prices. A change needs its own dated card.
+ */
+import type { ModelPrice } from "../types.js";
+import { anthropicCaps, flat, tiered, withCache } from "./shared.js";
+
+export const ANTHROPIC_MODELS: ModelPrice[] = [
+  {
+    id: "claude-fable-5-1",
+    label: "Fable 5.1",
+    provider: "anthropic",
+    tier: "frontier",
+    // Cache reads are $0.25/M, not a tenth of input. Agent traffic is mostly
+    // cache reads, so the default would overbill Fable 5.1 by up to 4x.
+    rates: withCache(10, 50, 0.25, "2026-09-22"),
+    contextTokens: 1_000_000,
+    maxOutputTokens: 128_000,
+    capabilities: [...anthropicCaps, "reasoning"],
+    bestFor: "Hardest reasoning and long-horizon agentic runs. Thinking is always on.",
+  },
+  {
+    id: "claude-mythos-5-1",
+    label: "Mythos 5.1",
+    provider: "anthropic",
+    tier: "frontier",
+    // Mythos 5.1's cache-read rate was not published at launch; Fable 5.1's is
+    // assumed. If it is the default $1.00 instead, this understates.
+    rates: withCache(10, 50, 0.25, "2026-09-22"),
+    contextTokens: 1_000_000,
+    maxOutputTokens: 128_000,
+    capabilities: [...anthropicCaps, "reasoning"],
+    bestFor: "Same capability as Fable 5.1, for approved organisations.",
+  },
+  {
+    id: "claude-fable-5",
+    label: "Fable 5",
+    provider: "anthropic",
+    tier: "frontier",
+    rates: flat(10, 50, "2026-06-24"),
+    contextTokens: 1_000_000,
+    maxOutputTokens: 128_000,
+    capabilities: [...anthropicCaps, "reasoning"],
+    bestFor: "Previous Fable generation, at the same price as Fable 5.1.",
+  },
+  {
+    id: "claude-mythos-5",
+    label: "Mythos 5",
+    provider: "anthropic",
+    tier: "frontier",
+    rates: flat(10, 50, "2026-06-24"),
+    contextTokens: 1_000_000,
+    maxOutputTokens: 128_000,
+    capabilities: [...anthropicCaps, "reasoning"],
+    bestFor: "Same capability as Fable 5, for approved organisations.",
+  },
+  {
+    id: "claude-opus-5-5",
+    label: "Opus 5.5",
+    provider: "anthropic",
+    tier: "frontier",
+    // Cache reads are $0.20/M: a twentieth of input, not a tenth.
+    rates: withCache(4, 20, 0.2, "2026-09-22"),
+    contextTokens: 1_000_000,
+    maxOutputTokens: 128_000,
+    capabilities: [...anthropicCaps, "reasoning"],
+    fast: { inputPerM: 8, outputPerM: 40 },
+    bestFor:
+      "Complex multi-step work, refactors, architecture, judging other models. Thinking is always on.",
+  },
+  {
+    id: "claude-opus-5",
+    label: "Opus 5",
+    provider: "anthropic",
+    tier: "frontier",
+    rates: flat(5, 25, "2026-06-24"),
+    contextTokens: 1_000_000,
+    maxOutputTokens: 128_000,
+    capabilities: [...anthropicCaps, "reasoning"],
+    fast: { inputPerM: 10, outputPerM: 50 },
+    bestFor: "Previous Opus generation; Opus 5.5 does the same work for 20% less.",
+  },
+  {
+    id: "claude-opus-4-8",
+    label: "Opus 4.8",
+    provider: "anthropic",
+    tier: "frontier",
+    rates: flat(5, 25),
+    contextTokens: 1_000_000,
+    maxOutputTokens: 128_000,
+    capabilities: [...anthropicCaps, "reasoning"],
+    bestFor: "Previous frontier generation; still strong on agentic coding.",
+  },
+  {
+    id: "claude-opus-4-7",
+    label: "Opus 4.7",
+    provider: "anthropic",
+    tier: "frontier",
+    rates: flat(5, 25),
+    contextTokens: 1_000_000,
+    maxOutputTokens: 128_000,
+    capabilities: [...anthropicCaps, "reasoning"],
+    bestFor: "Older frontier generation.",
+  },
+  {
+    id: "claude-opus-4-6",
+    label: "Opus 4.6",
+    provider: "anthropic",
+    tier: "frontier",
+    rates: flat(5, 25),
+    contextTokens: 1_000_000,
+    maxOutputTokens: 128_000,
+    capabilities: [...anthropicCaps, "reasoning"],
+    bestFor: "Older frontier generation.",
+  },
+  {
+    id: "claude-sonnet-5-5",
+    label: "Sonnet 5.5",
+    provider: "anthropic",
+    tier: "balanced",
+    rates: flat(2, 10, "2026-09-25"),
+    contextTokens: 1_000_000,
+    maxOutputTokens: 128_000,
+    capabilities: [...anthropicCaps, "reasoning"],
+    bestFor: "The default workhorse: most coding, editing and tool-driven turns.",
+  },
+  {
+    id: "claude-sonnet-5",
+    label: "Sonnet 5",
+    provider: "anthropic",
+    tier: "balanced",
+    // $2/$10 was announced as introductory with a rise to $3/$15 on 2026-09-01,
+    // which Anthropic cancelled. One card, not two.
+    rates: flat(2, 10, "2026-02-05"),
+    contextTokens: 1_000_000,
+    maxOutputTokens: 128_000,
+    capabilities: [...anthropicCaps, "reasoning"],
+    bestFor: "Previous Sonnet generation, at the same price as Sonnet 5.5.",
+  },
+  {
+    id: "claude-sonnet-4-6",
+    label: "Sonnet 4.6",
+    provider: "anthropic",
+    tier: "balanced",
+    rates: flat(3, 15),
+    contextTokens: 1_000_000,
+    maxOutputTokens: 64_000,
+    capabilities: [...anthropicCaps, "reasoning"],
+    bestFor: "Previous balanced generation.",
+  },
+  {
+    id: "claude-haiku-5-5",
+    label: "Haiku 5.5",
+    provider: "anthropic",
+    tier: "fast",
+    // Every rate is 5x once the prompt, cache reads and writes included, is over 100K.
+    rates: tiered(0.1, 0.5, 100_000, 0.5, 2.5, "2026-10-07"),
+    contextTokens: 1_000_000,
+    maxOutputTokens: 128_000,
+    capabilities: [...anthropicCaps, "reasoning"],
+    bestFor:
+      "Sub-agents and short, well-specified turns. A tenth of Haiku 4.5 under 100K of prompt, 5x that past it.",
+    switchTarget: false,
+  },
+  {
+    id: "claude-haiku-4-5",
+    label: "Haiku 4.5",
+    provider: "anthropic",
+    tier: "fast",
+    rates: flat(1, 5, "2025-10-01"),
+    contextTokens: 200_000,
+    maxOutputTokens: 64_000,
+    capabilities: anthropicCaps,
+    bestFor:
+      "Mechanical, well-specified work: classification, extraction, formatting, log triage, cheap sub-agents.",
+  },
+];
