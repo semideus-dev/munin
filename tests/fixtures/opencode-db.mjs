@@ -244,6 +244,91 @@ export function createV2FixtureDb() {
           content: "SENTINEL_TOOL_OUTPUT",
         },
       },
+      {
+        type: "tool",
+        id: "tool-v2-grep-1",
+        name: "grep",
+        state: {
+          input: {
+            pattern: "SENTINEL_GREP_PATTERN",
+            include: "*.ts",
+            path: "/work/alpha-app/src",
+          },
+          status: "ok",
+          content: "SENTINEL_GREP_OUTPUT_ONE",
+        },
+      },
+      {
+        type: "tool",
+        id: "tool-v2-grep-2",
+        name: "grep",
+        state: {
+          input: { pattern: "SENTINEL_GREP_PATTERN", path: "/work/alpha-app/test" },
+          status: "ok",
+          content: "SENTINEL_GREP_OUTPUT_TWO",
+        },
+      },
+      {
+        type: "tool",
+        id: "tool-v2-glob-1",
+        name: "glob",
+        state: {
+          input: { pattern: "src/**/*.ts", path: "/work/alpha-app" },
+          status: "ok",
+          content: "SENTINEL_GLOB_OUTPUT_ONE",
+        },
+      },
+      {
+        type: "tool",
+        id: "tool-v2-glob-2",
+        name: "glob",
+        state: {
+          input: { pattern: "test/**/*.ts", path: "/work/alpha-app" },
+          status: "ok",
+          content: "SENTINEL_GLOB_OUTPUT_TWO",
+        },
+      },
+      {
+        type: "tool",
+        id: "tool-v2-edit-1",
+        name: "edit",
+        state: {
+          input: {
+            path: "/work/alpha-app/src/main.ts",
+            oldString: "SENTINEL_OLD_TEXT_ONE",
+            newString: "new text one",
+          },
+          status: "ok",
+          content: "SENTINEL_EDIT_OUTPUT_ONE",
+        },
+      },
+      {
+        type: "tool",
+        id: "tool-v2-edit-2",
+        name: "edit",
+        state: {
+          input: {
+            path: "/work/alpha-app/src/main.ts",
+            oldString: "SENTINEL_OLD_TEXT_TWO",
+            newString: "new text two",
+          },
+          status: "ok",
+          content: "SENTINEL_EDIT_OUTPUT_TWO",
+        },
+      },
+      {
+        type: "tool",
+        id: "tool-v2-write-1",
+        name: "write",
+        state: {
+          input: {
+            filePath: "/work/alpha-app/src/written.ts",
+            content: "SENTINEL_WRITE_CONTENT",
+          },
+          status: "ok",
+          content: "SENTINEL_WRITE_OUTPUT",
+        },
+      },
     ],
     time: { completed: 1_700_100_040_000 },
   });

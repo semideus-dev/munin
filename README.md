@@ -117,7 +117,8 @@ npm test
 ## Documentation
 
 - `docs/project.md`: phase plan and exit criteria
-- `docs/plans/phase-1-completion.md`: current phase work
+- `docs/plans/`: per-phase plans and exit records
+- `docs/readers.md`: source model, V1/V2 mapping, read-only guarantees
 - `docs/adr/`: architecture decisions
 - `docs/diagnostics.md`: exit codes, error and warning shapes
 - `docs/parity-matrix.md`: what is ported, adapted, rebuilt, or deferred

@@ -146,10 +146,7 @@ function summarize(dataset, sessionId) {
     totals.observedCost += usage.observedUsd ?? 0;
   }
 
-  const subagentCount = modelCalls.filter((message) => {
-    const agent = message.agent ?? "";
-    return /subagent/i.test(agent);
-  }).length;
+  const subagentCount = sessions.filter((session) => session.parentId !== undefined).length;
 
   const instructionSessions = sessions.filter((session) => session.instructions !== undefined);
   const instructionChars = instructionSessions.reduce(
@@ -185,7 +182,7 @@ function printSummary(summary, dbPath, sessionId) {
   console.log(`tokens cache read: ${summary.totals.cacheRead}`);
   console.log(`tokens cache write: ${summary.totals.cacheWrite}`);
   console.log(`observed cost usd: ${summary.totals.observedCost}`);
-  console.log(`subagent calls: ${summary.subagentCount}`);
+  console.log(`subagent sessions: ${summary.subagentCount}`);
   console.log(`instruction sessions: ${summary.instructionSessions}`);
   console.log(`instruction chars: ${summary.instructionChars}`);
 

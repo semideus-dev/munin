@@ -1,9 +1,11 @@
 # Phase 2 plan: readers and normalization
 
-Status: planned
+Status: complete (closed 2026-10-22, commit `71e5de0`)
 Owner: team
 Scope: read OpenCode history into the source model. No pricing, analysis, CLI commands, or dashboard.
 Estimated effort: 7 to 9 hours
+
+Closure note: the reader, normalization, reconciliation, fixtures, integration test, and harness are complete. The two gaps carried out of Phase 2 were closed in Phase 3 Step 0: `docs/readers.md` was written, and the tool-signature mapping now reads the OpenCode field names for `grep`, `glob`, `edit`, and `write`. The exit checklist below is kept as the historical record.
 
 ## Goal
 
@@ -204,9 +206,14 @@ Tool calls come from assistant `content[]` entries of type `tool`:
 - `id`: tool `id`, falling back to `name + index`.
 - `name`: canonical mapping where known (`read` to `Read`, `shell` to `Bash`,
   `ls` to `LS`, and so on); otherwise the raw name.
-- `signature`: ported rule from the reference. `Read:path#offset:limit`,
-  `Edit:path#inputHash`, `Bash:command`, `Grep:pattern|path`,
-  `Glob:pattern`, `WebFetch:url`, default `name:jsonPrefix`.
+- `signature`: `Read:path#offset:limit`, `Write:path#contentHash`,
+  `Edit:path#oldTextHash`, `Bash:command`, `Execute:command`,
+  `Grep:pattern|include|path`, `Glob:pattern|path`, `LS:path`, `Find:pattern|path`,
+  `Search:query`, `PrintTree:path`, `WebFetch:url`, default `name:jsonPrefix`.
+  `Grep` reads `pattern` or `regex` and `include` or `include_pattern`; `Glob`
+  reads `pattern` or `glob`; `Edit` reads `oldString` or `old_text`. The edit
+  and write hashes are short FNV-1a digests so the changed text never enters
+  the serialised dataset.
 - `target`: `input.path` or `input.filePath`, so edits can retire earlier reads.
 - `resultChars`: SQL `length(state.content)`, never the content.
 - `isError`: `state.status === "error"`.
@@ -222,9 +229,12 @@ For each session with `instruction_state`:
 2. Sort keys.
 3. Sum `length(instruction_blob.value)` per key. A missing blob produces
    `source.instruction-missing`.
-4. Build `prefixHash` as the first 16 hex characters of SHA-256 over:
-   sorted `key=hash` lines, then agent, provider, model, and variant. Hashing
-   lives in `local` because `node:crypto` is not allowed in core.
+4. Build `prefixHash` as the full SHA-256 hex digest over sorted `key=hash`
+   lines. Agent, provider, model, and variant are not part of the digest in the
+   current implementation. Hashing lives in `local` because `node:crypto` is
+   not allowed in core. Phase 3 groups cache identity by
+   `prefixHash + agent + model + variant` so the omission cannot merge two
+   model prefixes.
 
 ### Mixed schemas
 

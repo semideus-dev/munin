@@ -241,6 +241,10 @@ inventory.
 **Exit criterion:** Fixture tests pass for V1 and V2, and an integration
 test reads the real local database without modifying it.
 
+Status: complete on 2026-10-22 (commit `71e5de0`). The executed scope and exit
+record are in `docs/plans/phase-2-readers.md`. The two documentation gaps
+carried out of Phase 2 were closed at the start of Phase 3 Step 0.
+
 ------------------------------------------------------------------------
 
 ## Phase 3 --- Analysis engine, pricing and reporting
