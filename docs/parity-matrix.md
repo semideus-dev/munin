@@ -103,12 +103,14 @@ Every rule below is evaluated against message-level usage. "V2 input" names the 
 
 ## Dashboard
 
+Deferred to the end of the build (Phase 7), so Phase 1 exits with three packages. See `docs/plans/phase-1-completion.md`.
+
 | Page | Content | Status |
 | --- | --- | --- |
-| `/` | observed + API-equivalent KPIs, spend over time, model split, cache split, top findings, data health | New |
-| `/sessions` | filterable session table | New |
-| `/sessions/[id]` | turn timeline, tools, cache behaviour, findings, subagents | New |
-| `/findings` | ranked findings with evidence and calculation; apply/undo for three rules | New |
+| `/` | observed + API-equivalent KPIs, spend over time, model split, cache split, top findings, data health | New, deferred |
+| `/sessions` | filterable session table | New, deferred |
+| `/sessions/[id]` | turn timeline, tools, cache behaviour, findings, subagents | New, deferred |
+| `/findings` | ranked findings with evidence and calculation; apply/undo for three rules | New, deferred |
 
 ## Deliberate gaps
 

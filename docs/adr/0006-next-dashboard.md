@@ -6,3 +6,7 @@ The dashboard is `apps/dashboard`, a Next.js App Router application with Tailwin
 
 - Charts render from server-computed report objects; the browser never sees raw prompts.
 - Action endpoints exist only for the three config rules in ADR-0004.
+
+## Scheduling
+
+The decision stands, but implementation is deferred to the end of the build. Phase 1 exits with `core`, `local` and `cli`; the dashboard workspace is created when Phase 7 starts. See `docs/plans/phase-1-completion.md`.
