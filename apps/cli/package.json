@@ -1,0 +1,20 @@
+{
+  "name": "munin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "munin": "dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@munin/core": "*",
+    "@munin/local": "*"
+  }
+}
