@@ -17,6 +17,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "pretest": "npm run build",
     "test": "node --test",
+    "reader": "npm run build && node scripts/read-local.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

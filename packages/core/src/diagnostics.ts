@@ -45,6 +45,19 @@ export const WARNING_CODES = {
   configInvalidDb: "config.invalid-db",
   configInvalidDays: "config.invalid-days",
   configInvalidTz: "config.invalid-tz",
+
+  sourceMissingDb: "source.missing-db",
+  sourceUnreadable: "source.unreadable",
+  sourceBusy: "source.busy",
+  sourceNoSchema: "source.no-schema",
+  sourceEmpty: "source.empty",
+  sourceMixedSchema: "source.mixed-schema",
+  sourceInvalidJson: "source.invalid-json",
+  sourceUnknownType: "source.unknown-type",
+  sourceUnknownModel: "source.unknown-model",
+  sourceMissingCost: "source.missing-cost",
+  sourceAggregateMismatch: "source.aggregate-mismatch",
+  sourceInstructionMissing: "source.instruction-missing",
 } as const;
 
 export type WarningCode = (typeof WARNING_CODES)[keyof typeof WARNING_CODES];

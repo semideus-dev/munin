@@ -33,6 +33,12 @@ export interface SourceUsage {
   observedUsd?: number;
 }
 
+export interface SourceInstructions {
+  keys: string[];
+  chars: number;
+  prefixHash: string;
+}
+
 /** One OpenCode conversation, before analysis. */
 export interface SourceSession {
   id: string;
@@ -55,6 +61,7 @@ export interface SourceSession {
    */
   aggregateUsage?: TokenCounts;
   aggregateCost?: number;
+  instructions?: SourceInstructions;
 }
 
 /** One stored record inside a session. */
