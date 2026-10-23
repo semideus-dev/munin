@@ -14,6 +14,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
+    "@munin/application": "*",
     "@munin/core": "*",
     "@munin/local": "*"
   }

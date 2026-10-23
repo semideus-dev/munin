@@ -1,0 +1,32 @@
+{
+  "name": "@munin/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "build": "npm run build:main && npm run build:preload && npm run build:renderer",
+    "build:main": "tsc -p tsconfig.main.json",
+    "build:preload": "esbuild src/preload/index.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist/preload/index.cjs",
+    "build:renderer": "vite build",
+    "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.preload.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
+    "start": "electron .",
+    "dev:renderer": "vite",
+    "dev:app": "MUNIN_DESKTOP_DEV_URL=http://127.0.0.1:5173 electron ."
+  },
+  "dependencies": {
+    "@munin/application": "*",
+    "@munin/core": "*",
+    "@munin/local": "*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "electron": "^45.0.0",
+    "esbuild": "^0.25.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "vite": "^7.0.0"
+  }
+}

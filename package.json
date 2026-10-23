@@ -9,7 +9,9 @@
   "workspaces": [
     "packages/core",
     "packages/local",
-    "apps/cli"
+    "packages/application",
+    "apps/cli",
+    "apps/desktop"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",

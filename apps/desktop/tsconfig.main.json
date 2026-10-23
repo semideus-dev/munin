@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node"],
+    "esModuleInterop": true,
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["src/main", "src/shared"]
+}

@@ -6,6 +6,7 @@
  * codes so exit status stays consistent with the rest of the product.
  */
 import { MuninError } from "@munin/core";
+import { toScanError } from "@munin/application";
 import type { ScanOptions } from "@munin/local";
 import { flagValue, type ParsedArgs } from "./args.js";
 import { positiveInteger } from "./data.js";
@@ -36,43 +37,10 @@ export function scanOptions(args: ParsedArgs): ScanOptions {
 }
 
 /**
- * Turn a runtime failure into an expected failure. The scan engine prefixes
- * fatal source warnings with their stable code (`[source.missing-db] ...`);
- * lock contention has no code yet, so give it one here.
+ * Turn a runtime failure into an expected failure. The mapping is shared with
+ * the desktop service; the CLI keeps this wrapper so its call sites and docs
+ * are unchanged.
  */
 export function scanFailure(error: unknown): MuninError {
-  if (error instanceof MuninError) return error;
-  const message = error instanceof Error ? error.message : String(error);
-  const bracketed = /^\[([a-z][a-z0-9.-]*)\]\s*([\s\S]*)$/.exec(message);
-  if (bracketed !== null) {
-    const code = bracketed[1]!;
-    return new MuninError({
-      code,
-      kind: code.startsWith("source.") ? "source" : "ledger",
-      message: bracketed[2]!.trim(),
-      cause: error,
-    });
-  }
-  if (/holds the lock|Cannot verify existing Munin scan lock/.test(message)) {
-    return new MuninError({
-      code: "state.lock-held",
-      kind: "ledger",
-      message,
-      cause: error,
-    });
-  }
-  if (/Could not remove stale Munin scan lock/.test(message)) {
-    return new MuninError({
-      code: "state.lock-unremovable",
-      kind: "ledger",
-      message,
-      cause: error,
-    });
-  }
-  return new MuninError({
-    code: "ledger.scan-failed",
-    kind: "ledger",
-    message,
-    cause: error,
-  });
+  return toScanError(error);
 }
